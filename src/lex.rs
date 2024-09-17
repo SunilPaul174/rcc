@@ -1,5 +1,9 @@
 use crate::{Lexed, Preprocessed, Program};
+use thiserror::Error;
 
-fn lex(program: Program<Preprocessed>) -> Program<Lexed> {
+#[derive(Error, Debug)]
+enum LexError {}
+
+fn lex(program: Program<Preprocessed>) -> Result<Program<Lexed>, LexError> {
         todo!()
 }

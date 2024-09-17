@@ -1,5 +1,11 @@
 use crate::{CodeGenerated, Parsed, Program};
+use thiserror::Error;
 
-fn generate_code(program: Program<Parsed>) -> Program<CodeGenerated> {
+#[derive(Error, Debug)]
+enum CodeGenError {}
+
+fn generate_code(
+        program: Program<Parsed>,
+) -> Result<Program<CodeGenerated>, CodeGenError> {
         todo!()
 }
