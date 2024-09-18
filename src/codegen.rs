@@ -1,11 +1,12 @@
-use crate::{CodeGenerated, Parsed, Program};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
-enum CodeGenError {}
+use crate::driver::{Program, _CodeGenerated, _Parsed};
 
-fn generate_code(
-        program: Program<Parsed>,
-) -> Result<Program<CodeGenerated>, CodeGenError> {
+#[derive(Debug, Error)]
+pub enum CodeGenError {}
+
+pub fn codegen(
+        program: Program<_Parsed>,
+) -> Result<Program<_CodeGenerated>, CodeGenError> {
         todo!()
 }

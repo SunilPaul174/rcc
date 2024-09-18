@@ -1,9 +1,11 @@
-use crate::{Lexed, Preprocessed, Program};
+use crate::driver::{Program, _Lexed, _Preprocessed};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-enum LexError {}
+pub enum LexError {}
 
-fn lex(program: Program<Preprocessed>) -> Result<Program<Lexed>, LexError> {
+pub fn lex(
+        program: Program<_Preprocessed>,
+) -> Result<Program<_Lexed>, LexError> {
         todo!()
 }

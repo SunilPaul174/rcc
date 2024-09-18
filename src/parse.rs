@@ -1,9 +1,9 @@
-use crate::{Lexed, Parsed, Program};
+use crate::driver::{_Lexed, _Parsed, Program};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
-enum ParseError {}
+#[derive(Debug, Error)]
+pub enum ParseError {}
 
-fn parse(program: Program<Lexed>) -> Result<Program<Parsed>, ParseError> {
+pub fn parse(program: Program<_Lexed>) -> Result<Program<_Parsed>, ParseError> {
         todo!()
 }
