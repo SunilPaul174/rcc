@@ -1,4 +1,4 @@
-use crate::driver::{Lexed, Preprocessed, Program};
+use crate::{Lexed, Preprocessed, Program};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
