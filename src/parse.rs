@@ -1,9 +1,11 @@
-use crate::driver::{_Lexed, _Parsed, Program};
+use crate::driver::{Lexed, Parsed, Program};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ParseError {}
 
-pub fn parse(program: Program<_Lexed>) -> Result<Program<_Parsed>, ParseError> {
-        todo!()
+impl Program<Lexed> {
+        pub fn parse(&self) -> Result<Program<Parsed>, ParseError> {
+                todo!()
+        }
 }
