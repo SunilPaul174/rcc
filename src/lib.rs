@@ -11,10 +11,14 @@ use std::{
 use thiserror::Error;
 
 pub struct Initialized(PathBuf);
-pub struct Preprocessed;
+pub struct Preprocessed {
+        pre_processor_output: Vec<u8>,
+}
 pub struct Lexed;
 pub struct Parsed;
-pub struct CodeGenerated;
+pub struct CodeGenerated {
+        code_generated: Vec<u8>,
+}
 pub struct Compiled;
 
 pub trait CompilationState {}
@@ -30,7 +34,6 @@ impl CompilationState for Compiled {}
 pub struct Program<S: CompilationState> {
         operation: RequestedOperation,
         state: S,
-        working_file: Vec<u8>,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -72,8 +75,9 @@ impl Program<Initialized> {
 
                 Ok(Program {
                         operation: self.operation,
-                        working_file: pre_processor_output,
-                        state: Preprocessed,
+                        state: Preprocessed {
+                                pre_processor_output,
+                        },
                 })
         }
 }
@@ -83,7 +87,7 @@ impl Program<CodeGenerated> {
                 // cc ASSEMBLY_FILE -o OUTPUT_FILE
 
                 let mut file = File::create("created_asm.s")?;
-                file.write_all(&self.working_file)?;
+                file.write_all(&self.state.code_generated)?;
                 let mut assembler_and_linker = Command::new("cc");
                 let asm_and_link = assembler_and_linker.args([
                         "created_asm.s",
@@ -94,7 +98,6 @@ impl Program<CodeGenerated> {
                 remove_file("created_asm.s")?;
 
                 Ok(Program {
-                        working_file: vec![],
                         operation: self.operation,
                         state: Compiled,
                 })
@@ -130,7 +133,6 @@ pub fn drive() -> Result<(), DriverError> {
         };
         let program: Program<Initialized> = Program {
                 operation,
-                working_file: vec![],
                 state: Initialized(currentfile),
         };
 
