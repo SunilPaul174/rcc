@@ -1,12 +1,14 @@
-mod codegen;
-mod lex;
-mod parse;
+pub mod codegen;
+pub mod lex;
+pub mod parse;
 
+use lex::Token;
 use std::{
         fs::{remove_file, File},
         io::{self, Write},
         path::PathBuf,
         process::Command,
+        string::FromUtf8Error,
 };
 use thiserror::Error;
 
@@ -14,7 +16,11 @@ pub struct Initialized(PathBuf);
 pub struct Preprocessed {
         pre_processor_output: Vec<u8>,
 }
-pub struct Lexed;
+#[derive(Debug)]
+pub struct Lexed {
+        pre_processor_output: Vec<u8>,
+        tokens: Vec<Token>,
+}
 pub struct Parsed;
 pub struct CodeGenerated {
         code_generated: Vec<u8>,
@@ -52,9 +58,9 @@ pub enum DriverError {
         #[error("The Request {0} cannot be fulfilled")]
         Request(String),
         #[error("The preprocessor exited")]
-        PreProcessor(io::Error),
+        PreProcessor(PreProcessorError),
         #[error("The lexer failed with: {0}")]
-        Lex(#[from] lex::LexError),
+        Lex(#[from] lex::InvalidTokenError),
         #[error("The parser failed with: {0}")]
         Parse(#[from] parse::ParseError),
         #[error("Code generation failed with: {0}")]
@@ -63,20 +69,42 @@ pub enum DriverError {
         ASMLink(#[from] io::Error),
 }
 
+#[derive(Debug, Error)]
+pub enum PreProcessorError {
+        #[error("Could not get output of preprocessor")]
+        IoError(io::ErrorKind),
+        #[error("Contains Invalid UTF8")]
+        ReadError(FromUtf8Error),
+}
+
+impl From<FromUtf8Error> for PreProcessorError {
+        fn from(value: FromUtf8Error) -> Self {
+                PreProcessorError::ReadError(value)
+        }
+}
+
+impl From<io::Error> for PreProcessorError {
+        fn from(value: io::Error) -> Self {
+                PreProcessorError::IoError(value.kind())
+        }
+}
+
 impl Program<Initialized> {
-        fn preprocess(self) -> Result<Program<Preprocessed>, io::Error> {
+        fn preprocess(
+                self,
+        ) -> Result<Program<Preprocessed>, PreProcessorError> {
                 // cc -E -P INPUTFILE -o PREPROCESSEDFILE
 
                 let input = self.state.0;
                 let mut binding = Command::new("cc");
-                let preprocess =
+                let preprocessor =
                         binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
-                let pre_processor_output = preprocess.output()?.stdout;
+                let preprocessor_output = preprocessor.output()?.stdout;
 
                 Ok(Program {
                         operation: self.operation,
                         state: Preprocessed {
-                                pre_processor_output,
+                                pre_processor_output: preprocessor_output,
                         },
                 })
         }
@@ -108,14 +136,14 @@ fn get_request() -> Result<(RequestedOperation, PathBuf), String> {
         let mut args = std::env::args();
         args.next();
 
-        let Some(op) = args.next() else {
-                return Err(String::from("No op"));
-        };
-
         let Some(file) = args.next() else {
-                return Err(String::from("No args"));
+                return Err(String::from("No file"));
         };
         let file = PathBuf::from(file);
+
+        let Some(op) = args.next() else {
+                return Ok((RequestedOperation::Compile, file));
+        };
 
         match op.as_str() {
                 "--lex" => Ok((RequestedOperation::Lex, file)),
