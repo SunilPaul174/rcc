@@ -50,10 +50,6 @@ impl Program<Preprocessed> {
                 let mut curr_slice;
                 let mut left = 0;
                 let total_len = pre_processor_output.len();
-                // let slice_left = || {
-                //         curr_slice.as_ptr() as usize
-                //                 - pre_processor_output.as_ptr() as usize
-                // };
                 let mut tokens: Vec<Token> = vec![];
 
                 while left < total_len {
@@ -82,10 +78,7 @@ impl Program<Preprocessed> {
         }
 }
 
-fn get_largest_match(
-        curr_slice: &[u8],
-        start: usize,
-) -> Option<(Token, usize)> {
+fn get_largest_match(curr_slice: &[u8], start: usize) -> Option<(Token, usize)> {
         match curr_slice[0] {
                 b'(' => {
                         return Some((
@@ -142,17 +135,14 @@ fn get_largest_match(
         for i in curr_slice {
                 let curr_alpha = i.is_ascii_alphabetic();
                 let curr_digit = i.is_ascii_digit();
-                // TODO fix yo bool here
 
-                if (is_numeric) & (!curr_digit) & (curr_alpha) & (is_alphabetic)
-                {
+                if (is_numeric) & (!curr_digit) & (curr_alpha) & (is_alphabetic) {
                         is_numeric = false;
                 } else if (is_numeric) & (!is_alphabetic) & (curr_alpha) {
                         return None;
                 }
 
-                if (is_alphabetic) & (!curr_alpha) & (curr_digit) & (is_numeric)
-                {
+                if (is_alphabetic) & (!curr_alpha) & (curr_digit) & (is_numeric) {
                         is_alphabetic = false;
                 } else if (is_alphabetic) & (!is_numeric) & (curr_digit) {
                         return None;
