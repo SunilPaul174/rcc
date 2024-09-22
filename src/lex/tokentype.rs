@@ -1,6 +1,6 @@
-pub static INT: [u8; 3] = [b'i', b'n', b't'];
-pub static VOID: [u8; 4] = [b'v', b'o', b'i', b'd'];
-pub static RETURN: [u8; 6] = [b'r', b'e', b't', b'u', b'r', b'n'];
+pub static INT: &[u8; 3] = b"int";
+pub static VOID: &[u8; 3] = b"vod";
+pub static RETURN: &[u8; 3] = b"ren";
 
 #[derive(Debug, Copy, Clone)]
 pub enum TokenType {

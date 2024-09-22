@@ -1,5 +1,9 @@
 pub mod tokentype;
+static KEYWORD_MAX_LENGTH: usize = 6;
 
+use std::{collections::HashMap, ptr};
+
+use crate::lex::tokentype::{INT, RETURN, VOID};
 use thiserror::Error;
 use tokentype::TokenType;
 
@@ -30,7 +34,12 @@ impl Program<Preprocessed> {
         // Semicolon ;
 
         pub fn lex(self) -> Result<Program<Lexed>, InvalidTokenError> {
-                let pre_processor_output = self.state.pre_processor_output;
+                let pre_processor_output = // unsafe {
+                        // String::from_utf8_unchecked(
+                                self.state.pre_processor_output;
+                // )
+                //};
+
                 let mut curr_slice;
                 let mut left = 0;
                 let total_len = pre_processor_output.len();
@@ -38,12 +47,13 @@ impl Program<Preprocessed> {
 
                 while left < total_len {
                         curr_slice = &pre_processor_output[left..];
-                        if curr_slice[0].is_ascii_whitespace() {
+                        let first = curr_slice[0]; // .chars().next().unwrap();
+                        if first.is_ascii_whitespace() {
                                 left += 1;
                                 continue;
                         }
 
-                        let res = get_largest_match(curr_slice, left);
+                        let res = get_largest_match(curr_slice, left, first);
 
                         if let Some((token, len)) = res {
                                 tokens.push(token);
@@ -65,55 +75,12 @@ impl Program<Preprocessed> {
 fn get_largest_match(
         curr_slice: &[u8],
         start: usize,
+        first: u8,
 ) -> Option<(Token, usize)> {
-        match curr_slice[0] {
-                b'(' => {
-                        return Some((
-                                Token {
-                                        token_type: TokenType::OpenParanthesis,
-                                        start,
-                                },
-                                1,
-                        ))
-                }
-                b')' => {
-                        return Some((
-                                Token {
-                                        token_type: TokenType::CloseParanthesis,
-                                        start,
-                                },
-                                1,
-                        ))
-                }
-                b'{' => {
-                        return Some((
-                                Token {
-                                        token_type: TokenType::OpenBrace,
-                                        start,
-                                },
-                                1,
-                        ))
-                }
-                b'}' => {
-                        return Some((
-                                Token {
-                                        token_type: TokenType::CloseBrace,
-                                        start,
-                                },
-                                1,
-                        ))
-                }
-                b';' => {
-                        return Some((
-                                Token {
-                                        token_type: TokenType::SemiColon,
-                                        start,
-                                },
-                                1,
-                        ))
-                }
-                _ => {}
+        if let Some(value) = is_symbol(first, start) {
+                return Some(value);
         }
+
         let mut is_numeric = true;
         let mut is_alphabetic = true;
         let mut len = 0;
@@ -153,32 +120,18 @@ fn get_largest_match(
                 ));
         }
 
-        let temp = &curr_slice[..len];
-        if temp == INT {
-                return Some((
-                        Token {
-                                token_type: TokenType::KeywordInt,
-                                start,
-                        },
-                        len,
-                ));
-        } else if temp == VOID {
-                return Some((
-                        Token {
-                                token_type: TokenType::KeywordVoid,
-                                start,
-                        },
-                        len,
-                ));
-        } else if temp == RETURN {
-                return Some((
-                        Token {
-                                token_type: TokenType::KeywordReturn,
-                                start,
-                        },
-                        len,
-                ));
-        }
+        let slice = &curr_slice[..len];
+        let arr = [slice[0], slice[1], slice[slice.len() - 1]];
+
+        let keyword_map = HashMap::from([
+                (INT, TokenType::KeywordInt),
+                (VOID, TokenType::KeywordVoid),
+                (RETURN, TokenType::KeywordReturn),
+        ]);
+
+        if let Some(&token_type) = keyword_map.get(&arr) {
+                return Some((Token { token_type, start }, len));
+        };
 
         Some((
                 Token {
@@ -187,4 +140,17 @@ fn get_largest_match(
                 },
                 len,
         ))
+}
+
+fn is_symbol(char: u8, start: usize) -> Option<(Token, usize)> {
+        let token_type = match char {
+                b'(' => TokenType::OpenParanthesis,
+                b')' => TokenType::CloseParanthesis,
+                b'{' => TokenType::OpenBrace,
+                b'}' => TokenType::CloseBrace,
+                b';' => TokenType::SemiColon,
+                _ => return None,
+        };
+
+        Some((Token { token_type, start }, 1))
 }

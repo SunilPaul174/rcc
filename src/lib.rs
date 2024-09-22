@@ -1,10 +1,11 @@
+#![feature(const_refs_to_static)]
 pub mod codegen;
 pub mod lex;
 pub mod parse;
 
 use lex::Token;
 use std::{
-        fs::{remove_file, File},
+        fs::{read, remove_file, File},
         io::{self, Write},
         path::PathBuf,
         process::Command,
@@ -99,12 +100,14 @@ impl Program<Initialized> {
                 let mut binding = Command::new("cc");
                 let preprocessor =
                         binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
-                let preprocessor_output = preprocessor.output()?.stdout;
+                let pre_processor_output = preprocessor.output()?.stdout;
+
+                // let pre_processor_output = read(input).unwrap();
 
                 Ok(Program {
                         operation: self.operation,
                         state: Preprocessed {
-                                pre_processor_output: preprocessor_output,
+                                pre_processor_output,
                         },
                 })
         }
