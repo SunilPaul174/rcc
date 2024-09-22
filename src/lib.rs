@@ -1,11 +1,13 @@
 #![feature(const_refs_to_static)]
+#![feature(type_changing_struct_update)]
 pub mod codegen;
 pub mod lex;
 pub mod parse;
 
 use lex::Token;
+use parse::nodes::AProgram;
 use std::{
-        fs::{read, remove_file, File},
+        fs::{remove_file, File},
         io::{self, Write},
         path::PathBuf,
         process::Command,
@@ -22,7 +24,11 @@ pub struct Lexed {
         pre_processor_output: Vec<u8>,
         tokens: Vec<Token>,
 }
-pub struct Parsed;
+#[derive(Debug)]
+pub struct Parsed {
+        pre_processor_output: Vec<u8>,
+        program: AProgram,
+}
 pub struct CodeGenerated {
         code_generated: Vec<u8>,
 }
@@ -91,24 +97,17 @@ impl From<io::Error> for PreProcessorError {
 }
 
 impl Program<Initialized> {
-        fn preprocess(
-                self,
-        ) -> Result<Program<Preprocessed>, PreProcessorError> {
+        fn preprocess(self) -> Result<Program<Preprocessed>, PreProcessorError> {
                 // cc -E -P INPUTFILE -o PREPROCESSEDFILE
 
                 let input = self.state.0;
                 let mut binding = Command::new("cc");
-                let preprocessor =
-                        binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
+                let preprocessor = binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
                 let pre_processor_output = preprocessor.output()?.stdout;
-
-                // let pre_processor_output = read(input).unwrap();
 
                 Ok(Program {
                         operation: self.operation,
-                        state: Preprocessed {
-                                pre_processor_output,
-                        },
+                        state: Preprocessed { pre_processor_output },
                 })
         }
 }
@@ -120,11 +119,7 @@ impl Program<CodeGenerated> {
                 let mut file = File::create("created_asm.s")?;
                 file.write_all(&self.state.code_generated)?;
                 let mut assembler_and_linker = Command::new("cc");
-                let asm_and_link = assembler_and_linker.args([
-                        "created_asm.s",
-                        "-o",
-                        "a.out",
-                ]);
+                let asm_and_link = assembler_and_linker.args(["created_asm.s", "-o", "a.out"]);
                 let _ = asm_and_link.output()?;
                 remove_file("created_asm.s")?;
 

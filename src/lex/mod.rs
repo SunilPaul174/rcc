@@ -1,7 +1,9 @@
 pub mod tokentype;
-static KEYWORD_MAX_LENGTH: usize = 6;
 
-use std::{collections::HashMap, ptr};
+use std::{
+        collections::HashMap,
+        fmt::{Debug, Display},
+};
 
 use crate::lex::tokentype::{INT, RETURN, VOID};
 use thiserror::Error;
@@ -9,10 +11,16 @@ use tokentype::TokenType;
 
 use crate::{Lexed, Preprocessed, Program};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Token {
         pub token_type: TokenType,
         pub start: usize,
+}
+
+impl Display for Token {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{} at {}", format!("{:?}", self.token_type), self.start)
+        }
 }
 
 #[derive(Debug, Error)]
