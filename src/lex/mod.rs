@@ -1,12 +1,25 @@
-pub mod tokentype;
-use tokentype::TokenType;
-
-use core::str;
-use std::collections::HashMap;
-
 use thiserror::Error;
 
 use crate::{Lexed, Preprocessed, Program};
+
+static INT: [u8; 3] = [b'i', b'n', b't'];
+static VOID: [u8; 4] = [b'v', b'o', b'i', b'd'];
+static RETURN: [u8; 6] = [b'r', b'e', b't', b'u', b'r', b'n'];
+
+#[derive(Debug, Copy, Clone)]
+pub enum TokenType {
+        // usizes are lengths
+        Identifier(usize),
+        Constant(usize),
+        KeywordInt,
+        KeywordVoid,
+        KeywordReturn,
+        OpenBrace,
+        CloseBrace,
+        OpenParanthesis,
+        CloseParanthesis,
+        SemiColon,
+}
 
 #[derive(Debug)]
 pub struct Token {
@@ -52,8 +65,6 @@ impl Program<Preprocessed> {
                                 tokens.push(token);
                                 left += len;
                                 continue;
-                        } else {
-                                return Err(InvalidTokenError::At(left));
                         }
                 }
 
@@ -68,10 +79,54 @@ impl Program<Preprocessed> {
 }
 
 fn get_largest_match(curr_slice: &[u8], start: usize) -> Option<(Token, usize)> {
-        if let Some(value) = check_for_symbols(curr_slice, start) {
-                return Some(value);
+        match curr_slice[0] {
+                b'(' => {
+                        return Some((
+                                Token {
+                                        token_type: TokenType::OpenParanthesis,
+                                        start,
+                                },
+                                1,
+                        ))
+                }
+                b')' => {
+                        return Some((
+                                Token {
+                                        token_type: TokenType::CloseParanthesis,
+                                        start,
+                                },
+                                1,
+                        ))
+                }
+                b'{' => {
+                        return Some((
+                                Token {
+                                        token_type: TokenType::OpenBrace,
+                                        start,
+                                },
+                                1,
+                        ))
+                }
+                b'}' => {
+                        return Some((
+                                Token {
+                                        token_type: TokenType::CloseBrace,
+                                        start,
+                                },
+                                1,
+                        ))
+                }
+                b';' => {
+                        return Some((
+                                Token {
+                                        token_type: TokenType::SemiColon,
+                                        start,
+                                },
+                                1,
+                        ))
+                }
+                _ => {}
         }
-
         let mut is_numeric = true;
         let mut is_alphabetic = true;
         let mut len = 0;
@@ -109,65 +164,38 @@ fn get_largest_match(curr_slice: &[u8], start: usize) -> Option<(Token, usize)> 
                 ));
         }
 
-        let curr_identifier = str::from_utf8(&curr_slice[..len]).unwrap();
-
-        let keyword_map = HashMap::from([
-                ("auto", TokenType::KeywordAuto),
-                ("break", TokenType::KeywordBreak),
-                ("case", TokenType::KeywordCase),
-                ("char", TokenType::KeywordChar),
-                ("const", TokenType::KeywordConst),
-                ("continue", TokenType::KeywordContinue),
-                ("default", TokenType::KeywordDefault),
-                ("do", TokenType::KeywordDo),
-                ("double", TokenType::KeywordDouble),
-                ("else", TokenType::KeywordElse),
-                ("enum", TokenType::KeywordEnum),
-                ("extern", TokenType::KeywordExtern),
-                ("float", TokenType::KeywordFloat),
-                ("for", TokenType::KeywordFor),
-                ("goto", TokenType::KeywordGoto),
-                ("if", TokenType::KeywordIf),
-                ("long", TokenType::KeywordLong),
-                ("register", TokenType::KeywordRegister),
-                ("return", TokenType::KeywordReturn),
-                ("short", TokenType::KeywordShort),
-                ("signed", TokenType::KeywordSigned),
-                ("sizeof", TokenType::KeywordSizeof),
-                ("static", TokenType::KeywordStatic),
-                ("struct", TokenType::KeywordStruct),
-                ("switch", TokenType::KeywordSwitch),
-                ("typedef", TokenType::KeywordTypedef),
-                ("union", TokenType::KeywordUnion),
-                ("unsigned", TokenType::KeywordUnsigned),
-                ("void", TokenType::KeywordVoid),
-                ("volatile", TokenType::KeywordVolatile),
-                ("while", TokenType::KeywordWhile),
-                ("int", TokenType::KeywordInt),
-        ]);
-
-        let Some(&token_type) = keyword_map.get(curr_identifier) else {
+        let temp = &curr_slice[..len];
+        if temp == INT {
                 return Some((
                         Token {
-                                token_type: TokenType::Identifier(len),
+                                token_type: TokenType::KeywordInt,
                                 start,
                         },
                         len,
                 ));
-        };
+        } else if temp == VOID {
+                return Some((
+                        Token {
+                                token_type: TokenType::KeywordVoid,
+                                start,
+                        },
+                        len,
+                ));
+        } else if temp == RETURN {
+                return Some((
+                        Token {
+                                token_type: TokenType::KeywordReturn,
+                                start,
+                        },
+                        len,
+                ));
+        }
 
-        Some((Token { token_type, start }, len))
-}
-
-fn check_for_symbols(curr_slice: &[u8], start: usize) -> Option<(Token, usize)> {
-        let token_type = match curr_slice[0] {
-                b'(' => TokenType::OpenParanthesis,
-                b')' => TokenType::CloseParanthesis,
-                b'{' => TokenType::OpenBrace,
-                b'}' => TokenType::CloseBrace,
-                b';' => TokenType::SemiColon,
-                _ => return None,
-        };
-
-        Some((Token { token_type, start }, 1))
+        Some((
+                Token {
+                        token_type: TokenType::Identifier(len),
+                        start,
+                },
+                len,
+        ))
 }
