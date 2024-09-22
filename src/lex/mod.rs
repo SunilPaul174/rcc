@@ -34,11 +34,7 @@ impl Program<Preprocessed> {
         // Semicolon ;
 
         pub fn lex(self) -> Result<Program<Lexed>, InvalidTokenError> {
-                let pre_processor_output = // unsafe {
-                        // String::from_utf8_unchecked(
-                                self.state.pre_processor_output;
-                // )
-                //};
+                let pre_processor_output = self.state.pre_processor_output;
 
                 let mut curr_slice;
                 let mut left = 0;
@@ -47,7 +43,7 @@ impl Program<Preprocessed> {
 
                 while left < total_len {
                         curr_slice = &pre_processor_output[left..];
-                        let first = curr_slice[0]; // .chars().next().unwrap();
+                        let first = curr_slice[0];
                         if first.is_ascii_whitespace() {
                                 left += 1;
                                 continue;
@@ -72,11 +68,7 @@ impl Program<Preprocessed> {
         }
 }
 
-fn get_largest_match(
-        curr_slice: &[u8],
-        start: usize,
-        first: u8,
-) -> Option<(Token, usize)> {
+fn get_largest_match(curr_slice: &[u8], start: usize, first: u8) -> Option<(Token, usize)> {
         if let Some(value) = is_symbol(first, start) {
                 return Some(value);
         }
@@ -90,15 +82,13 @@ fn get_largest_match(
                 let curr_alpha = i.is_ascii_alphabetic();
                 let curr_digit = i.is_ascii_digit();
 
-                if (is_numeric) & (!curr_digit) & (curr_alpha) & (is_alphabetic)
-                {
+                if (is_numeric) & (!curr_digit) & (curr_alpha) & (is_alphabetic) {
                         is_numeric = false;
                 } else if (is_numeric) & (!is_alphabetic) & (curr_alpha) {
                         return None;
                 }
 
-                if (is_alphabetic) & (!curr_alpha) & (curr_digit) & (is_numeric)
-                {
+                if (is_alphabetic) & (!curr_alpha) & (curr_digit) & (is_numeric) {
                         is_alphabetic = false;
                 } else if (is_alphabetic) & (!is_numeric) & (curr_digit) {
                         return None;
