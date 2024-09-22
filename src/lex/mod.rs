@@ -1,25 +1,9 @@
+pub mod tokentype;
+
 use thiserror::Error;
+use tokentype::TokenType;
 
 use crate::{Lexed, Preprocessed, Program};
-
-static INT: [u8; 3] = [b'i', b'n', b't'];
-static VOID: [u8; 4] = [b'v', b'o', b'i', b'd'];
-static RETURN: [u8; 6] = [b'r', b'e', b't', b'u', b'r', b'n'];
-
-#[derive(Debug, Copy, Clone)]
-pub enum TokenType {
-        // usizes are lengths
-        Identifier(usize),
-        Constant(usize),
-        KeywordInt,
-        KeywordVoid,
-        KeywordReturn,
-        OpenBrace,
-        CloseBrace,
-        OpenParanthesis,
-        CloseParanthesis,
-        SemiColon,
-}
 
 #[derive(Debug)]
 pub struct Token {
@@ -68,17 +52,20 @@ impl Program<Preprocessed> {
                         }
                 }
 
-                dbg!(Ok(Program {
+                Ok(Program {
                         operation: self.operation,
                         state: Lexed {
                                 pre_processor_output,
                                 tokens,
                         },
-                }))
+                })
         }
 }
 
-fn get_largest_match(curr_slice: &[u8], start: usize) -> Option<(Token, usize)> {
+fn get_largest_match(
+        curr_slice: &[u8],
+        start: usize,
+) -> Option<(Token, usize)> {
         match curr_slice[0] {
                 b'(' => {
                         return Some((
@@ -136,13 +123,15 @@ fn get_largest_match(curr_slice: &[u8], start: usize) -> Option<(Token, usize)> 
                 let curr_alpha = i.is_ascii_alphabetic();
                 let curr_digit = i.is_ascii_digit();
 
-                if (is_numeric) & (!curr_digit) & (curr_alpha) & (is_alphabetic) {
+                if (is_numeric) & (!curr_digit) & (curr_alpha) & (is_alphabetic)
+                {
                         is_numeric = false;
                 } else if (is_numeric) & (!is_alphabetic) & (curr_alpha) {
                         return None;
                 }
 
-                if (is_alphabetic) & (!curr_alpha) & (curr_digit) & (is_numeric) {
+                if (is_alphabetic) & (!curr_alpha) & (curr_digit) & (is_numeric)
+                {
                         is_alphabetic = false;
                 } else if (is_alphabetic) & (!is_numeric) & (curr_digit) {
                         return None;
