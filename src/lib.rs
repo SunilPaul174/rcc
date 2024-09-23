@@ -1,10 +1,11 @@
 #![feature(const_refs_to_static)]
 #![feature(type_changing_struct_update)]
 pub mod codegen;
+pub mod compile;
 pub mod lex;
 pub mod parse;
 
-use codegen::ASTSM::ASMProgram;
+use codegen::astsm::ASMProgram;
 use lex::Token;
 use parse::nodes::AProgram;
 use std::{
@@ -34,10 +35,13 @@ pub struct ASMASTGenerated {
         asm_program: ASMProgram,
 }
 
-pub struct CodeGenerated {
+pub struct Compiled {
         code_generated: Vec<u8>,
 }
-pub struct Compiled;
+
+pub struct MachineCoded {
+        machine_code: PathBuf,
+}
 
 pub trait CompilationState {}
 
@@ -46,8 +50,8 @@ impl CompilationState for Preprocessed {}
 impl CompilationState for Lexed {}
 impl CompilationState for Parsed {}
 impl CompilationState for ASMASTGenerated {}
-impl CompilationState for CodeGenerated {}
 impl CompilationState for Compiled {}
+impl CompilationState for MachineCoded {}
 
 #[derive(Debug)]
 pub struct Program<S: CompilationState> {
@@ -120,8 +124,8 @@ impl Program<Initialized> {
         }
 }
 
-impl Program<CodeGenerated> {
-        fn assemble_and_link(self) -> Result<Program<Compiled>, io::Error> {
+impl Program<Compiled> {
+        fn assemble_and_link(self) -> Result<Program<MachineCoded>, io::Error> {
                 // cc ASSEMBLY_FILE -o OUTPUT_FILE
 
                 let mut file = File::create("created_asm.s")?;
@@ -133,7 +137,9 @@ impl Program<CodeGenerated> {
 
                 Ok(Program {
                         operation: self.operation,
-                        state: Compiled,
+                        state: MachineCoded {
+                                machine_code: PathBuf::from("a.out"),
+                        },
                 })
         }
 }
@@ -142,14 +148,15 @@ fn get_request() -> Result<(RequestedOperation, PathBuf), String> {
         let mut args = std::env::args();
         args.next();
 
+        let Some(op) = args.next() else {
+                // return Ok((RequestedOperation::Compile, file));
+                panic!();
+        };
+
         let Some(file) = args.next() else {
                 return Err(String::from("No file"));
         };
         let file = PathBuf::from(file);
-
-        let Some(op) = args.next() else {
-                return Ok((RequestedOperation::Compile, file));
-        };
 
         match op.as_str() {
                 "--lex" => Ok((RequestedOperation::Lex, file)),
@@ -187,7 +194,7 @@ pub fn drive() -> Result<(), DriverError> {
         if program.operation == RequestedOperation::CodeGen {
                 return Ok(());
         }
-        let program: Program<CodeGenerated> = todo!();
+        let program: Program<Compiled> = todo!();
         let program = program.assemble_and_link()?;
         if program.operation == RequestedOperation::Emit {
                 return Ok(());

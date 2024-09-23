@@ -63,6 +63,8 @@ impl Program<Preprocessed> {
                                 tokens.push(token);
                                 left += len;
                                 continue;
+                        } else {
+                                return Err(InvalidTokenError::At(left));
                         }
                 }
 

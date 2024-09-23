@@ -25,6 +25,8 @@ pub enum ParseError {
         At(usize),
         #[error("Your Program just ends abruptly.")]
         OutOfTokens,
+        #[error("Your Program has extra junk in it.")]
+        TooManyTokens,
 }
 
 fn check_token_type<'a>(
@@ -43,26 +45,30 @@ fn check_token_types<'a>(
         token_types: &[TokenType],
 ) -> Result<(), ParseError> {
         for i in token_types {
-                check_token_type(&mut tokens, i)?;
+                check_token_type(&mut *tokens, i)?;
         }
         Ok(())
 }
 
 // <program> ::= <function>
 pub fn parse_program(tokens: &Vec<Token>) -> Result<AProgram, ParseError> {
-        let function = parse_function(tokens.iter())?;
+        let mut tokensiter = tokens.iter();
+        let function = parse_function(&mut tokensiter)?;
+        if let Some(_) = tokensiter.next() {
+                return Err(ParseError::TooManyTokens);
+        }
 
-        dbg!(Ok(AProgram { function }))
+        Ok(AProgram { function })
 }
 
 // <function> ::= "int" <identifier> "(" "void" ")" "{" <statement> "}"
-fn parse_function<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<AFunction, ParseError> {
-        check_token_type(&mut tokens, &TokenType::KeywordInt)?;
+fn parse_function<'a>(tokens: &mut impl Iterator<Item = &'a Token>) -> Result<AFunction, ParseError> {
+        check_token_type(&mut *tokens, &TokenType::KeywordInt)?;
 
-        let identifier = parse_identifier(&mut tokens)?;
+        let identifier = parse_identifier(&mut *tokens)?;
 
         check_token_types(
-                &mut tokens,
+                &mut *tokens,
                 &[
                         TokenType::OpenParanthesis,
                         TokenType::KeywordVoid,
@@ -71,9 +77,9 @@ fn parse_function<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<AFu
                 ],
         )?;
 
-        let statement_body = parse_statement(&mut tokens)?;
+        let statement_body = parse_statement(&mut *tokens)?;
 
-        check_token_type(&mut tokens, &TokenType::CloseBrace)?;
+        check_token_type(&mut *tokens, &TokenType::CloseBrace)?;
 
         Ok(AFunction {
                 identifier,

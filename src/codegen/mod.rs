@@ -1,7 +1,7 @@
-pub mod ASTSM;
+pub mod astsm;
 
+use astsm::ASMProgram;
 use thiserror::Error;
-use ASTSM::ASMProgram;
 
 use crate::{ASMASTGenerated, Parsed, Program};
 
