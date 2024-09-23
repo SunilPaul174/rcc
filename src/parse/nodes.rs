@@ -1,23 +1,41 @@
 #[derive(Debug)]
 pub struct AProgram {
-        pub(super) function: AFunction,
+        pub(crate) function: AFunction,
 }
 
 #[derive(Debug)]
-pub(super) struct AFunction {
-        pub(super) identifier: AIdentifier,
-        pub(super) statement_body: AStatement,
+pub(crate) struct AFunction {
+        pub(crate) identifier: AIdentifier,
+        pub(crate) statement_body: AStatement,
 }
 
 #[derive(Debug)]
-pub(super) struct AIdentifier(pub(super) (usize, usize));
-
-#[derive(Debug)]
-pub(super) enum AStatement {
-        ReturnStatement(AExpression),
+pub(crate) struct AIdentifier {
+        pub(crate) len: usize,
+        pub(crate) start: usize,
 }
 
 #[derive(Debug)]
-pub(super) enum AExpression {
-        Constant(usize),
+pub(crate) enum AStatement {
+        ReturnStatement(AExpression<ReturnExpression>),
+}
+
+#[derive(Debug)]
+pub(crate) struct AExpression<S: AReturnExpression> {
+        pub(crate) state: S,
+}
+
+pub trait AReturnExpression {}
+
+#[derive(Debug)]
+pub(crate) struct ReturnExpression {
+        pub(crate) constant: AConstant,
+}
+
+impl AReturnExpression for ReturnExpression {}
+
+#[derive(Debug)]
+pub(crate) struct AConstant {
+        pub(crate) len: usize,
+        pub(crate) start: usize,
 }

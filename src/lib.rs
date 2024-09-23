@@ -4,10 +4,11 @@ pub mod codegen;
 pub mod lex;
 pub mod parse;
 
+use codegen::ASTSM::ASMProgram;
 use lex::Token;
 use parse::nodes::AProgram;
 use std::{
-        fs::{remove_file, File},
+        fs::{read, remove_file, File},
         io::{self, Write},
         path::PathBuf,
         process::Command,
@@ -29,6 +30,10 @@ pub struct Parsed {
         pre_processor_output: Vec<u8>,
         program: AProgram,
 }
+pub struct ASMASTGenerated {
+        asm_program: ASMProgram,
+}
+
 pub struct CodeGenerated {
         code_generated: Vec<u8>,
 }
@@ -40,6 +45,7 @@ impl CompilationState for Initialized {}
 impl CompilationState for Preprocessed {}
 impl CompilationState for Lexed {}
 impl CompilationState for Parsed {}
+impl CompilationState for ASMASTGenerated {}
 impl CompilationState for CodeGenerated {}
 impl CompilationState for Compiled {}
 
@@ -104,6 +110,8 @@ impl Program<Initialized> {
                 let mut binding = Command::new("cc");
                 let preprocessor = binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
                 let pre_processor_output = preprocessor.output()?.stdout;
+
+                // let pre_processor_output = read(input)?;
 
                 Ok(Program {
                         operation: self.operation,
@@ -179,6 +187,7 @@ pub fn drive() -> Result<(), DriverError> {
         if program.operation == RequestedOperation::CodeGen {
                 return Ok(());
         }
+        let program: Program<CodeGenerated> = todo!();
         let program = program.assemble_and_link()?;
         if program.operation == RequestedOperation::Emit {
                 return Ok(());

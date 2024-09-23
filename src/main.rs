@@ -1,5 +1,6 @@
 use rcc::{drive, DriverError};
 
 fn main() -> Result<(), DriverError> {
-        drive()
+        drive()?;
+        std::process::exit(0);
 }

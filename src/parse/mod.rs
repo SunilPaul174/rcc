@@ -4,7 +4,7 @@ use crate::{
         lex::{tokentype::TokenType, Token},
         Lexed, Parsed, Program,
 };
-use nodes::{AExpression, AFunction, AIdentifier, AProgram, AStatement};
+use nodes::{AConstant, AExpression, AFunction, AIdentifier, AProgram, AStatement, ReturnExpression};
 use thiserror::Error;
 
 impl Program<Lexed> {
@@ -27,9 +27,23 @@ pub enum ParseError {
         OutOfTokens,
 }
 
-fn check_token_type(token_type: TokenType, pot: &Token) -> Result<(), ParseError> {
-        if !(pot.token_type == token_type) {
+fn check_token_type<'a>(
+        tokens: &mut impl Iterator<Item = &'a Token>,
+        token_type: &TokenType,
+) -> Result<(), ParseError> {
+        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
+        if !(&pot.token_type == token_type) {
                 return Err(ParseError::At(pot.start));
+        }
+        Ok(())
+}
+
+fn check_token_types<'a>(
+        mut tokens: &mut impl Iterator<Item = &'a Token>,
+        token_types: &[TokenType],
+) -> Result<(), ParseError> {
+        for i in token_types {
+                check_token_type(&mut tokens, i)?;
         }
         Ok(())
 }
@@ -38,29 +52,28 @@ fn check_token_type(token_type: TokenType, pot: &Token) -> Result<(), ParseError
 pub fn parse_program(tokens: &Vec<Token>) -> Result<AProgram, ParseError> {
         let function = parse_function(tokens.iter())?;
 
-        Ok(AProgram { function })
+        dbg!(Ok(AProgram { function }))
 }
 
 // <function> ::= "int" <identifier> "(" "void" ")" "{" <statement> "}"
 fn parse_function<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<AFunction, ParseError> {
-        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        check_token_type(TokenType::KeywordInt, &pot)?;
+        check_token_type(&mut tokens, &TokenType::KeywordInt)?;
 
         let identifier = parse_identifier(&mut tokens)?;
 
-        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        check_token_type(TokenType::OpenParanthesis, &pot)?;
-        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        check_token_type(TokenType::KeywordVoid, &pot)?;
-        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        check_token_type(TokenType::CloseParanthesis, &pot)?;
-        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        check_token_type(TokenType::OpenBrace, &pot)?;
+        check_token_types(
+                &mut tokens,
+                &[
+                        TokenType::OpenParanthesis,
+                        TokenType::KeywordVoid,
+                        TokenType::CloseParanthesis,
+                        TokenType::OpenBrace,
+                ],
+        )?;
 
         let statement_body = parse_statement(&mut tokens)?;
 
-        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        check_token_type(TokenType::CloseBrace, &pot)?;
+        check_token_type(&mut tokens, &TokenType::CloseBrace)?;
 
         Ok(AFunction {
                 identifier,
@@ -79,30 +92,34 @@ fn parse_identifier<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<A
                 return Err(ParseError::At(pot.start));
         };
 
-        Ok(AIdentifier((len, start)))
+        Ok(AIdentifier { len, start })
 }
 
 // <statement> ::= "return" <exp> ";"
 fn parse_statement<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<AStatement, ParseError> {
-        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        check_token_type(TokenType::KeywordReturn, &pot)?;
+        check_token_type(&mut tokens, &TokenType::KeywordReturn)?;
 
         let exp = parse_expression(&mut tokens)?;
 
-        let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        check_token_type(TokenType::SemiColon, &pot)?;
+        check_token_type(&mut tokens, &TokenType::SemiColon)?;
 
         Ok(AStatement::ReturnStatement(exp))
 }
 
 // <exp> ::= <int>
 // <int> ::= ? A constant token ?
-fn parse_expression<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<AExpression, ParseError> {
+fn parse_expression<'a>(
+        mut tokens: impl Iterator<Item = &'a Token>,
+) -> Result<AExpression<ReturnExpression>, ParseError> {
         let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
 
-        let TokenType::Constant(constant) = pot.token_type else {
+        let (TokenType::Constant(len), start) = (pot.token_type, pot.start) else {
                 return Err(ParseError::At(pot.start));
         };
 
-        Ok(AExpression::Constant(constant))
+        Ok(AExpression {
+                state: ReturnExpression {
+                        constant: AConstant { len, start },
+                },
+        })
 }
