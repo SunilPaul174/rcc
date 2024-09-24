@@ -19,7 +19,12 @@ pub struct Token {
 
 impl Display for Token {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{} at {}", format!("{:?}", self.token_type), self.start)
+                write!(
+                        f,
+                        "{} at {}",
+                        format!("{:?}", self.token_type),
+                        self.start
+                )
         }
 }
 
@@ -78,7 +83,11 @@ impl Program<Preprocessed> {
         }
 }
 
-fn get_largest_match(curr_slice: &[u8], start: usize, first: u8) -> Option<(Token, usize)> {
+fn get_largest_match(
+        curr_slice: &[u8],
+        start: usize,
+        first: u8,
+) -> Option<(Token, usize)> {
         if let Some(value) = is_symbol(first, start) {
                 return Some(value);
         }
@@ -92,13 +101,15 @@ fn get_largest_match(curr_slice: &[u8], start: usize, first: u8) -> Option<(Toke
                 let curr_alpha = i.is_ascii_alphabetic();
                 let curr_digit = i.is_ascii_digit();
 
-                if (is_numeric) & (!curr_digit) & (curr_alpha) & (is_alphabetic) {
+                if (is_numeric) & (!curr_digit) & (curr_alpha) & (is_alphabetic)
+                {
                         is_numeric = false;
                 } else if (is_numeric) & (!is_alphabetic) & (curr_alpha) {
                         return None;
                 }
 
-                if (is_alphabetic) & (!curr_alpha) & (curr_digit) & (is_numeric) {
+                if (is_alphabetic) & (!curr_alpha) & (curr_digit) & (is_numeric)
+                {
                         is_alphabetic = false;
                 } else if (is_alphabetic) & (!is_numeric) & (curr_digit) {
                         return None;

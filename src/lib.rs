@@ -1,15 +1,17 @@
 #![feature(const_refs_to_static)]
 #![feature(type_changing_struct_update)]
+#![allow(unreachable_code)]
 pub mod codegen;
 pub mod compile;
 pub mod lex;
 pub mod parse;
 
 use codegen::astsm::ASMProgram;
+use core::panic;
 use lex::Token;
 use parse::nodes::AProgram;
 use std::{
-        fs::{read, remove_file, File},
+        fs::File,
         io::{self, Write},
         path::PathBuf,
         process::Command,
@@ -32,13 +34,16 @@ pub struct Parsed {
         program: AProgram,
 }
 pub struct ASMASTGenerated {
+        pre_processor_output: Vec<u8>,
         asm_program: ASMProgram,
 }
 
+#[derive(Debug)]
 pub struct Compiled {
         code_generated: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub struct MachineCoded {
         machine_code: PathBuf,
 }
@@ -107,19 +112,24 @@ impl From<io::Error> for PreProcessorError {
 }
 
 impl Program<Initialized> {
-        fn preprocess(self) -> Result<Program<Preprocessed>, PreProcessorError> {
+        fn preprocess(
+                self,
+        ) -> Result<Program<Preprocessed>, PreProcessorError> {
                 // cc -E -P INPUTFILE -o PREPROCESSEDFILE
 
                 let input = self.state.0;
                 let mut binding = Command::new("cc");
-                let preprocessor = binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
+                let preprocessor =
+                        binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
                 let pre_processor_output = preprocessor.output()?.stdout;
 
                 // let pre_processor_output = read(input)?;
 
                 Ok(Program {
                         operation: self.operation,
-                        state: Preprocessed { pre_processor_output },
+                        state: Preprocessed {
+                                pre_processor_output,
+                        },
                 })
         }
 }
@@ -128,17 +138,24 @@ impl Program<Compiled> {
         fn assemble_and_link(self) -> Result<Program<MachineCoded>, io::Error> {
                 // cc ASSEMBLY_FILE -o OUTPUT_FILE
 
-                let mut file = File::create("created_asm.s")?;
+                let mut file = File::create("./created_asm.s")?;
                 file.write_all(&self.state.code_generated)?;
                 let mut assembler_and_linker = Command::new("cc");
-                let asm_and_link = assembler_and_linker.args(["created_asm.s", "-o", "a.out"]);
-                let _ = asm_and_link.output()?;
-                remove_file("created_asm.s")?;
+                let asm_and_link = assembler_and_linker.args([
+                        "./created_asm.s",
+                        "-o",
+                        "./a.out",
+                ]);
+                let output = dbg!(asm_and_link.output())?;
+                // if !output.stderr.is_empty() {
+                //         panic!("linker failed");
+                // }
+                // remove_file("./created_asm.s")?;
 
                 Ok(Program {
                         operation: self.operation,
                         state: MachineCoded {
-                                machine_code: PathBuf::from("a.out"),
+                                machine_code: PathBuf::from("./a.out"),
                         },
                 })
         }
@@ -163,7 +180,8 @@ fn get_request() -> Result<(RequestedOperation, PathBuf), String> {
                 "--parse" => Ok((RequestedOperation::Parse, file)),
                 "--codegen" => Ok((RequestedOperation::CodeGen, file)),
                 "-S" => Ok((RequestedOperation::Emit, file)),
-                _ => Ok((RequestedOperation::Compile, file)),
+                "-C" => Ok((RequestedOperation::Compile, file)),
+                _ => Err(String::from("FUCK")),
         }
 }
 
@@ -194,10 +212,10 @@ pub fn drive() -> Result<(), DriverError> {
         if program.operation == RequestedOperation::CodeGen {
                 return Ok(());
         }
-        let program: Program<Compiled> = todo!();
-        let program = program.assemble_and_link()?;
+        let program: Program<Compiled> = program.compile();
         if program.operation == RequestedOperation::Emit {
                 return Ok(());
         }
+        let program = program.assemble_and_link()?;
         Ok(())
 }
