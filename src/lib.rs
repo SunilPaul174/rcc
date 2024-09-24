@@ -44,9 +44,7 @@ pub struct Compiled {
 }
 
 #[derive(Debug)]
-pub struct MachineCoded {
-        machine_code: PathBuf,
-}
+pub struct MachineCoded {}
 
 pub trait CompilationState {}
 
@@ -88,7 +86,21 @@ pub enum DriverError {
         #[error("Code generation failed with: {0}")]
         CodeGen(#[from] codegen::CodeGenError),
         #[error("Assembly and linkage failed with: {0}")]
-        ASMLink(#[from] io::Error),
+        ASMLink(#[from] ASMLinkError),
+}
+
+#[derive(Debug, Error)]
+pub enum ASMLinkError {
+        #[error("Assembler or linker error")]
+        ASMLinkFailure,
+        #[error("io error")]
+        IoError(io::ErrorKind),
+}
+
+impl From<io::Error> for ASMLinkError {
+        fn from(value: io::Error) -> Self {
+                ASMLinkError::IoError(value.kind())
+        }
 }
 
 #[derive(Debug, Error)]
@@ -135,7 +147,9 @@ impl Program<Initialized> {
 }
 
 impl Program<Compiled> {
-        fn assemble_and_link(self) -> Result<Program<MachineCoded>, io::Error> {
+        fn assemble_and_link(
+                self,
+        ) -> Result<Program<MachineCoded>, ASMLinkError> {
                 // cc ASSEMBLY_FILE -o OUTPUT_FILE
 
                 let mut file = File::create("./created_asm.s")?;
@@ -146,7 +160,11 @@ impl Program<Compiled> {
                         "-o",
                         "./a.out",
                 ]);
-                let output = dbg!(asm_and_link.output())?;
+                let output = asm_and_link.output()?;
+                if output.status.code().unwrap() != 0 {
+                        dbg!(output);
+                        return Err(ASMLinkError::ASMLinkFailure);
+                }
                 // if !output.stderr.is_empty() {
                 //         panic!("linker failed");
                 // }
@@ -154,9 +172,7 @@ impl Program<Compiled> {
 
                 Ok(Program {
                         operation: self.operation,
-                        state: MachineCoded {
-                                machine_code: PathBuf::from("./a.out"),
-                        },
+                        state: MachineCoded {},
                 })
         }
 }
@@ -216,6 +232,6 @@ pub fn drive() -> Result<(), DriverError> {
         if program.operation == RequestedOperation::Emit {
                 return Ok(());
         }
-        let program = program.assemble_and_link()?;
+        let _ = program.assemble_and_link()?;
         Ok(())
 }

@@ -18,8 +18,7 @@ impl Program<ASMASTGenerated> {
                 } = self.state.asm_program;
 
                 let identifier =
-                        dbg!(&self.state.pre_processor_output
-                                [start..start + len]);
+                        &self.state.pre_processor_output[start..start + len];
                 let mut instructions_out = vec![];
                 for i in instructions {
                         let (

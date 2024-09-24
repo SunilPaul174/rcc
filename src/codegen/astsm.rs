@@ -55,7 +55,6 @@ impl From<AExpression<ReturnExpression>> for ASMReturnInstruction {
                                 Operand::from(aconstant),
                                 Operand::Register(Register),
                         ),
-                        ret: (),
                 }
         }
 }
@@ -63,7 +62,6 @@ impl From<AExpression<ReturnExpression>> for ASMReturnInstruction {
 // instruction = Mov(operand src, operand dst) | Ret
 pub(crate) struct ASMReturnInstruction {
         pub(crate) mov: (Operand, Operand),
-        pub(crate) ret: (),
 }
 
 // operand = Imm(int) | Register
