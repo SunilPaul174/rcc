@@ -30,11 +30,11 @@ impl Program<ASMASTGenerated> {
                 machine_code_out.extend([
                         br#".globl "#,
                         identifier,
-                        &[b'\n'],
+                        b"\n",
                         identifier,
-                        &[b':'],
+                        b":\n",
                         &instructions_out[..],
-                        &[b'\n'],
+                        b"\n",
                 ]
                 .concat());
 
