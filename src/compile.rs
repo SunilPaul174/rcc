@@ -1,7 +1,5 @@
 use crate::{
-        codegen::astsm::{
-                ASMFunction, ASMIdentifier, ASMProgram, Imm, Operand, Register,
-        },
+        codegen::astsm::{ASMFunction, ASMIdentifier, ASMProgram, Imm, Operand, Register},
         ASMASTGenerated, Compiled, Program,
 };
 
@@ -17,27 +15,16 @@ impl Program<ASMASTGenerated> {
                                 },
                 } = self.state.asm_program;
 
-                let identifier =
-                        &self.state.pre_processor_output[start..start + len];
+                let identifier = &self.state.pre_processor_output[start..start + len];
                 let mut instructions_out = vec![];
                 for i in instructions {
-                        let (
-                                Operand::Imm(Imm { len, start }),
-                                Operand::Register(Register),
-                        ) = i.mov
-                        else {
+                        let (Operand::Imm(Imm { len, start }), Operand::Register(Register)) = i.mov else {
                                 todo!();
                         };
-                        let slice = &self.state.pre_processor_output
-                                [start..start + len];
+                        let slice = &self.state.pre_processor_output[start..start + len];
 
                         instructions_out.push(b'\t');
-                        instructions_out.extend([
-                                b"movl $",
-                                slice,
-                                b", %eax\nret",
-                        ]
-                        .concat());
+                        instructions_out.extend([b"movl $", slice, b", %eax\nret"].concat());
                 }
 
                 machine_code_out.extend([
@@ -47,12 +34,11 @@ impl Program<ASMASTGenerated> {
                         identifier,
                         &[b':'],
                         &instructions_out[..],
+                        &[b'\n'],
                 ]
                 .concat());
 
-                // machine_code_out
-                //         .extend(r#".section .note.GNU-stack,"",@progbits"#
-                //                 .as_bytes());
+                machine_code_out.extend(br#".section  .note.GNU-stack, "", @progbits"#);
 
                 Program {
                         state: Compiled {

@@ -124,42 +124,29 @@ impl From<io::Error> for PreProcessorError {
 }
 
 impl Program<Initialized> {
-        fn preprocess(
-                self,
-        ) -> Result<Program<Preprocessed>, PreProcessorError> {
+        fn preprocess(self) -> Result<Program<Preprocessed>, PreProcessorError> {
                 // cc -E -P INPUTFILE -o PREPROCESSEDFILE
 
                 let input = self.state.0;
                 let mut binding = Command::new("cc");
-                let preprocessor =
-                        binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
+                let preprocessor = binding.args(["-E", "-P"]).arg(input).args(["-o", "-"]);
                 let pre_processor_output = preprocessor.output()?.stdout;
-
-                // let pre_processor_output = read(input)?;
 
                 Ok(Program {
                         operation: self.operation,
-                        state: Preprocessed {
-                                pre_processor_output,
-                        },
+                        state: Preprocessed { pre_processor_output },
                 })
         }
 }
 
 impl Program<Compiled> {
-        fn assemble_and_link(
-                self,
-        ) -> Result<Program<MachineCoded>, ASMLinkError> {
+        fn assemble_and_link(self) -> Result<Program<MachineCoded>, ASMLinkError> {
                 // cc ASSEMBLY_FILE -o OUTPUT_FILE
 
                 let mut file = File::create("./created_asm.s")?;
                 file.write_all(&self.state.code_generated)?;
                 let mut assembler_and_linker = Command::new("cc");
-                let asm_and_link = assembler_and_linker.args([
-                        "./created_asm.s",
-                        "-o",
-                        "./a.out",
-                ]);
+                let asm_and_link = assembler_and_linker.args(["./created_asm.s", "-o", "./a.out"]);
                 let output = asm_and_link.output()?;
                 if output.status.code().unwrap() != 0 {
                         dbg!(output);
