@@ -47,7 +47,7 @@ impl Program<Preprocessed> {
                 let mut curr_slice;
                 let mut left = 0;
                 let total_len = pre_processor_output.len();
-                let mut tokens: Vec<Token> = vec![];
+                let mut tokens = vec![];
 
                 while left < total_len {
                         curr_slice = &pre_processor_output[left..];
@@ -57,15 +57,13 @@ impl Program<Preprocessed> {
                                 continue;
                         }
 
-                        let res = get_largest_match(curr_slice, left, first);
-
-                        if let Some((token, len)) = res {
-                                tokens.push(token);
-                                left += len;
-                                continue;
-                        } else {
+                        let Some((token, len)) = get_largest_match(curr_slice, left, first) else {
                                 return Err(InvalidTokenError::At(left));
-                        }
+                        };
+
+                        tokens.push(token);
+                        left += len;
+                        continue;
                 }
 
                 Ok(Program {

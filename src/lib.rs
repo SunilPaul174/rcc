@@ -20,6 +20,7 @@ use std::{
 use thiserror::Error;
 
 pub struct Initialized(PathBuf);
+#[derive(Debug)]
 pub struct Preprocessed {
         pre_processor_output: Vec<u8>,
 }

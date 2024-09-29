@@ -1,7 +1,4 @@
-use crate::parse::nodes::{
-        AConstant, AExpression, AFunction, AIdentifier, AProgram, AStatement,
-        ReturnExpression,
-};
+use crate::parse::nodes::{AConstant, AExpression, AFunction, AIdentifier, AProgram, AStatement, ReturnExpression};
 
 // program = Program(function_definition)
 pub(crate) struct ASMProgram {
@@ -22,14 +19,11 @@ pub(crate) struct ASMFunction {
 }
 impl From<AFunction> for ASMFunction {
         fn from(value: AFunction) -> Self {
-                let AStatement::ReturnStatement(aexpression) =
-                        value.statement_body;
+                let AStatement::ReturnStatement(aexpression) = value.statement_body;
 
                 return ASMFunction {
                         identifier: ASMIdentifier::from(value.identifier),
-                        instructions: vec![ASMReturnInstruction::from(
-                                aexpression,
-                        )],
+                        instructions: vec![ASMReturnInstruction::from(aexpression)],
                 };
         }
 }
@@ -51,10 +45,7 @@ impl From<AExpression<ReturnExpression>> for ASMReturnInstruction {
         fn from(value: AExpression<ReturnExpression>) -> Self {
                 let aconstant = value.state.constant;
                 ASMReturnInstruction {
-                        mov: (
-                                Operand::from(aconstant),
-                                Operand::Register(Register),
-                        ),
+                        mov: (Operand::from(aconstant), Operand::Register(Register)),
                 }
         }
 }
