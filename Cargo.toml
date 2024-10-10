@@ -4,7 +4,6 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-# regex = "1.10.6"
 thiserror = "1.0.63"
 
 [profile.release]

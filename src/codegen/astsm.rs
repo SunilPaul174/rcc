@@ -1,4 +1,4 @@
-use crate::parse::nodes::{AConstant, AExpression, AFunction, AIdentifier, AProgram, AStatement, ReturnExpression};
+use crate::parse::nodes::{AConstant, AFunction, AIdentifier, AProgram, AStatement, ReturnExpression};
 
 // program = Program(function_definition)
 pub(crate) struct ASMProgram {
@@ -41,9 +41,9 @@ impl From<AIdentifier> for ASMIdentifier {
         }
 }
 
-impl From<AExpression<ReturnExpression>> for ASMReturnInstruction {
-        fn from(value: AExpression<ReturnExpression>) -> Self {
-                let aconstant = value.state.constant;
+impl From<ReturnExpression> for ASMReturnInstruction {
+        fn from(value: ReturnExpression) -> Self {
+                let aconstant = value.constant;
                 ASMReturnInstruction {
                         mov: (Operand::from(aconstant), Operand::Register(Register)),
                 }

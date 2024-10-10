@@ -17,22 +17,13 @@ pub(crate) struct AIdentifier {
 
 #[derive(Debug)]
 pub(crate) enum AStatement {
-        ReturnStatement(AExpression<ReturnExpression>),
+        ReturnStatement(ReturnExpression),
 }
-
-#[derive(Debug)]
-pub(crate) struct AExpression<S: AReturnExpression> {
-        pub(crate) state: S,
-}
-
-pub trait AReturnExpression {}
 
 #[derive(Debug)]
 pub(crate) struct ReturnExpression {
         pub(crate) constant: AConstant,
 }
-
-impl AReturnExpression for ReturnExpression {}
 
 #[derive(Debug)]
 pub(crate) struct AConstant {

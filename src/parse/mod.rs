@@ -4,7 +4,7 @@ use crate::{
         lex::{tokentype::TokenType, Token},
         Lexed, Parsed, Program,
 };
-use nodes::{AConstant, AExpression, AFunction, AIdentifier, AProgram, AStatement, ReturnExpression};
+use nodes::{AConstant, AFunction, AIdentifier, AProgram, AStatement, ReturnExpression};
 use thiserror::Error;
 
 impl Program<Lexed> {
@@ -29,12 +29,9 @@ pub enum ParseError {
         TooManyTokens,
 }
 
-fn check_token_type<'a>(
-        tokens: &mut impl Iterator<Item = &'a Token>,
-        token_type: &TokenType,
-) -> Result<(), ParseError> {
+fn check_token_type<'a>(tokens: &mut impl Iterator<Item = &'a Token>, token_type: TokenType) -> Result<(), ParseError> {
         let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
-        if !(&pot.token_type == token_type) {
+        if !(pot.token_type == token_type) {
                 return Err(ParseError::At(pot.start));
         }
         Ok(())
@@ -44,7 +41,7 @@ fn check_token_types<'a>(
         tokens: &mut impl Iterator<Item = &'a Token>,
         token_types: &[TokenType],
 ) -> Result<(), ParseError> {
-        for i in token_types {
+        for &i in token_types {
                 check_token_type(&mut *tokens, i)?;
         }
         Ok(())
@@ -63,7 +60,7 @@ pub fn parse_program(tokens: &Vec<Token>) -> Result<AProgram, ParseError> {
 
 // <function> ::= "int" <identifier> "(" "void" ")" "{" <statement> "}"
 fn parse_function<'a>(tokens: &mut impl Iterator<Item = &'a Token>) -> Result<AFunction, ParseError> {
-        check_token_type(&mut *tokens, &TokenType::KeywordInt)?;
+        check_token_type(&mut *tokens, TokenType::KeywordInt)?;
 
         let identifier = parse_identifier(&mut *tokens)?;
 
@@ -79,7 +76,7 @@ fn parse_function<'a>(tokens: &mut impl Iterator<Item = &'a Token>) -> Result<AF
 
         let statement_body = parse_statement(&mut *tokens)?;
 
-        check_token_type(&mut *tokens, &TokenType::CloseBrace)?;
+        check_token_type(&mut *tokens, TokenType::CloseBrace)?;
 
         Ok(AFunction {
                 identifier,
@@ -103,29 +100,25 @@ fn parse_identifier<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<A
 
 // <statement> ::= "return" <exp> ";"
 fn parse_statement<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<AStatement, ParseError> {
-        check_token_type(&mut tokens, &TokenType::KeywordReturn)?;
+        check_token_type(&mut tokens, TokenType::KeywordReturn)?;
 
         let exp = parse_expression(&mut tokens)?;
 
-        check_token_type(&mut tokens, &TokenType::SemiColon)?;
+        check_token_type(&mut tokens, TokenType::SemiColon)?;
 
         Ok(AStatement::ReturnStatement(exp))
 }
 
 // <exp> ::= <int>
 // <int> ::= ? A constant token ?
-fn parse_expression<'a>(
-        mut tokens: impl Iterator<Item = &'a Token>,
-) -> Result<AExpression<ReturnExpression>, ParseError> {
+fn parse_expression<'a>(mut tokens: impl Iterator<Item = &'a Token>) -> Result<ReturnExpression, ParseError> {
         let pot = tokens.next().ok_or(ParseError::OutOfTokens)?;
 
         let (TokenType::Constant(len), start) = (pot.token_type, pot.start) else {
                 return Err(ParseError::At(pot.start));
         };
 
-        Ok(AExpression {
-                state: ReturnExpression {
-                        constant: AConstant { len, start },
-                },
+        Ok(ReturnExpression {
+                constant: AConstant { len, start },
         })
 }

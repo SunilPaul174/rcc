@@ -3,6 +3,7 @@
 #![allow(unreachable_code)]
 pub mod codegen;
 pub mod compile;
+pub mod dot;
 pub mod lex;
 pub mod parse;
 
@@ -99,9 +100,7 @@ pub enum ASMLinkError {
 }
 
 impl From<io::Error> for ASMLinkError {
-        fn from(value: io::Error) -> Self {
-                ASMLinkError::IoError(value.kind())
-        }
+        fn from(value: io::Error) -> Self { ASMLinkError::IoError(value.kind()) }
 }
 
 #[derive(Debug, Error)]
@@ -113,15 +112,11 @@ pub enum PreProcessorError {
 }
 
 impl From<FromUtf8Error> for PreProcessorError {
-        fn from(value: FromUtf8Error) -> Self {
-                PreProcessorError::ReadError(value)
-        }
+        fn from(value: FromUtf8Error) -> Self { PreProcessorError::ReadError(value) }
 }
 
 impl From<io::Error> for PreProcessorError {
-        fn from(value: io::Error) -> Self {
-                PreProcessorError::IoError(value.kind())
-        }
+        fn from(value: io::Error) -> Self { PreProcessorError::IoError(value.kind()) }
 }
 
 impl Program<Initialized> {
@@ -212,6 +207,7 @@ pub fn drive() -> Result<(), DriverError> {
         if program.operation == RequestedOperation::Parse {
                 return Ok(());
         }
+        println!("{}", program.state.program.out(&program.state.pre_processor_output));
         let program = program.code_gen()?;
         if program.operation == RequestedOperation::CodeGen {
                 return Ok(());
