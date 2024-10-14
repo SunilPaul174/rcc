@@ -48,10 +48,10 @@ fn check_token_types<'a>(
 }
 
 // <program> ::= <function>
-pub fn parse_program(tokens: &Vec<Token>) -> Result<AProgram, ParseError> {
+pub fn parse_program(tokens: &[Token]) -> Result<AProgram, ParseError> {
         let mut tokensiter = tokens.iter();
         let function = parse_function(&mut tokensiter)?;
-        if let Some(_) = tokensiter.next() {
+        if tokensiter.next().is_some() {
                 return Err(ParseError::TooManyTokens);
         }
 

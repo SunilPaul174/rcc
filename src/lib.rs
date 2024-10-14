@@ -1,9 +1,6 @@
-#![feature(const_refs_to_static)]
 #![feature(type_changing_struct_update)]
-#![allow(unreachable_code)]
 pub mod codegen;
 pub mod compile;
-pub mod dot;
 pub mod lex;
 pub mod parse;
 
@@ -207,7 +204,6 @@ pub fn drive() -> Result<(), DriverError> {
         if program.operation == RequestedOperation::Parse {
                 return Ok(());
         }
-        println!("{}", program.state.program.out(&program.state.pre_processor_output));
         let program = program.code_gen()?;
         if program.operation == RequestedOperation::CodeGen {
                 return Ok(());

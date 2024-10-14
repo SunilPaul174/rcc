@@ -21,10 +21,10 @@ impl From<AFunction> for ASMFunction {
         fn from(value: AFunction) -> Self {
                 let AStatement::ReturnStatement(aexpression) = value.statement_body;
 
-                return ASMFunction {
+                ASMFunction {
                         identifier: ASMIdentifier::from(value.identifier),
                         instructions: vec![ASMReturnInstruction::from(aexpression)],
-                };
+                }
         }
 }
 
