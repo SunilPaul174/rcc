@@ -40,20 +40,29 @@ pub fn gen_asm(program: Program<Compiled>) -> Program<ASM> {
 fn instruction_to_vec(code: &[u8], instruction: ASMInstruction) -> Vec<u8> {
         match instruction {
                 ASMInstruction::Mov(Mov { src, dest }) => {
-                        [b"\tmovl ", operand_to_slice(&code, src), b", ", operand_to_slice(&code, dest), b"\n"].concat()
+                        let src = operand_to_slice(&code, src);
+                        let src = [&[src.0], src.1].concat();
+
+                        let dest = operand_to_slice(&code, dest);
+                        let dest = [&[dest.0], dest.1].concat();
+
+                        [b"\tmovl ", &src[..], b", ", &dest[..], b"\n"].concat()
                 }
                 ASMInstruction::Ret => vec![b'\t', b'r', b'e', b't', b'\n'],
         }
 }
 
-fn operand_to_slice<'a>(code: &'a [u8], operand: Operand) -> &'a [u8] {
+pub static DOLLAR: u8 = b'$';
+pub static PERCENT: u8 = b'%';
+
+fn operand_to_slice<'a>(code: &'a [u8], operand: Operand) -> (u8, &'a [u8]) {
         match operand {
                 Operand::Imm(imm) => {
                         let Imm(AConstant { start, len }) = imm;
-                        &code[start..start + len]
+                        (DOLLAR, &code[start..start + len])
                 }
                 Operand::Register(reg) => match reg {
-                        Register::EAX => b"%eax",
+                        Register::EAX => (PERCENT, b"eax"),
                 },
         }
 }
