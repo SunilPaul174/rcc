@@ -1,32 +1,31 @@
 #[derive(Debug)]
 pub struct AProgram {
-        pub(crate) function: AFunction,
+        pub functions: Vec<AFunction>,
 }
 
 #[derive(Debug)]
-pub(crate) struct AFunction {
-        pub(crate) identifier: AIdentifier,
-        pub(crate) statement_body: AStatement,
+pub struct AFunction {
+        pub identifier: AIdentifier,
+        pub statement_body: AStatement,
 }
 
 #[derive(Debug)]
-pub(crate) struct AIdentifier {
-        pub(crate) len: usize,
-        pub(crate) start: usize,
+pub struct AIdentifier {
+        pub start: usize,
+        pub len: usize,
 }
-
 #[derive(Debug)]
-pub(crate) enum AStatement {
-        ReturnStatement(ReturnExpression),
+pub struct AReturnStatement {
+        pub statement: AStatement,
 }
-
 #[derive(Debug)]
-pub(crate) struct ReturnExpression {
-        pub(crate) constant: AConstant,
+pub struct AStatement {
+        pub expr: AExpression,
 }
-
 #[derive(Debug)]
-pub(crate) struct AConstant {
-        pub(crate) len: usize,
-        pub(crate) start: usize,
+pub struct AExpression(pub AConstant);
+#[derive(Debug)]
+pub struct AConstant {
+        pub start: usize,
+        pub len: usize,
 }
