@@ -23,7 +23,15 @@ pub struct AStatement {
         pub expr: AExpression,
 }
 #[derive(Debug)]
-pub struct AExpression(pub AConstant);
+pub enum AExpression {
+        Constant(AConstant),
+        Unop(Unop, Box<AExpression>),
+}
+#[derive(Debug)]
+pub enum Unop {
+        Negate,
+        Complement,
+}
 #[derive(Debug)]
 pub struct AConstant {
         pub start: usize,

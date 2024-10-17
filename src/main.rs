@@ -9,6 +9,4 @@ fn main() {
         println!("{:#?}", res);
         let res = asm(res);
         println!("{:#?}", res);
-        let res = gen_asm(res);
-        println!("{}", String::from_utf8(res.state.code).unwrap());
 }

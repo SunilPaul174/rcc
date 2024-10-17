@@ -39,11 +39,11 @@ fn get_request() -> Result<(Operation, PathBuf), InitializationError> {
         args.next();
 
         let Some(op) = args.next() else {
-                return Err(InitializationError::NoFileInput);
+                return Err(InitializationError::NoOperationInput);
         };
 
         let Some(file) = args.next() else {
-                return Err(InitializationError::NoOperationInput);
+                return Err(InitializationError::NoFileInput);
         };
         let file = PathBuf::from(file);
 

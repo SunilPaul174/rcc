@@ -59,6 +59,8 @@ pub fn get_largest_match(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 
                 b'{' => Some(TokenType::OpenBrace),
                 b'}' => Some(TokenType::CloseBrace),
                 b';' => Some(TokenType::SemiColon),
+                b'-' => Some(TokenType::Minus),
+                b'~' => Some(TokenType::Tilde),
                 _ => None,
         } {
                 return Some(Token { token_type, len: 1, start });

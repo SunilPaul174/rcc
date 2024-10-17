@@ -10,6 +10,8 @@ pub enum TokenType {
         OpenBrace,
         CloseBrace,
         SemiColon,
+        Minus,
+        Tilde,
 }
 
 #[derive(Debug)]
