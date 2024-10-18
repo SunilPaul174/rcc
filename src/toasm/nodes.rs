@@ -41,7 +41,13 @@ pub struct ASMFunction {
 impl From<AFunction> for ASMFunction {
         fn from(value: AFunction) -> Self {
                 let identifier = value.identifier;
-                let AStatement { expr: AExpression(constant) } = value.statement_body;
+                let AStatement {
+                        expr: AExpression::Constant(constant),
+                } = value.statement_body
+                else {
+                        todo!()
+                };
+
                 let imm = Imm::from(constant);
 
                 let mov_instruct = ASMInstruction::Mov(Mov {

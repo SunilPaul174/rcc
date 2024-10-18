@@ -22,9 +22,7 @@ pub fn gen_asm(program: Program<Compiled>) -> Program<ASM> {
                 let identifier = &program.state.code[start..start + len];
                 code.extend_from_slice(&[b"\t.globl ", identifier, b"\n", identifier, b":\n"].concat());
 
-                let instructions = i.instructions;
-
-                for j in instructions {
+                for j in i.instructions {
                         code.extend_from_slice(&instruction_to_vec(&program.state.code, j));
                 }
         }
@@ -40,10 +38,10 @@ pub fn gen_asm(program: Program<Compiled>) -> Program<ASM> {
 fn instruction_to_vec(code: &[u8], instruction: ASMInstruction) -> Vec<u8> {
         match instruction {
                 ASMInstruction::Mov(Mov { src, dest }) => {
-                        let src = operand_to_slice(&code, src);
+                        let src = operand_to_slice(code, src);
                         let src = [&[src.0], src.1].concat();
 
-                        let dest = operand_to_slice(&code, dest);
+                        let dest = operand_to_slice(code, dest);
                         let dest = [&[dest.0], dest.1].concat();
 
                         [b"\tmovl ", &src[..], b", ", &dest[..], b"\n"].concat()
@@ -55,7 +53,7 @@ fn instruction_to_vec(code: &[u8], instruction: ASMInstruction) -> Vec<u8> {
 pub static DOLLAR: u8 = b'$';
 pub static PERCENT: u8 = b'%';
 
-fn operand_to_slice<'a>(code: &'a [u8], operand: Operand) -> (u8, &'a [u8]) {
+fn operand_to_slice(code: &[u8], operand: Operand) -> (u8, &[u8]) {
         match operand {
                 Operand::Imm(imm) => {
                         let Imm(AConstant { start, len }) = imm;

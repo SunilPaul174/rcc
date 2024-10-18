@@ -32,7 +32,6 @@ pub enum ParseError {
 pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, ParseError> {
         // let mut tokens = program.state.tokens.iter();
         let mut ptr = 0;
-        println!("parse_program: {}", ptr);
         let afunction = parse_function(&mut program.state.tokens, &mut ptr)?;
 
         if ptr < (program.state.tokens.len() - 1) {
@@ -49,8 +48,7 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Par
 }
 
 // <function> ::= "int" <identifier> "(" "void" ")" "{" <statement> "}"
-pub fn parse_function<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFunction, ParseError> {
-        println!("parse_function<'a>: {}", ptr);
+pub fn parse_function(tokens: &mut [Token], ptr: &mut usize) -> Result<AFunction, ParseError> {
         is_token(tokens, TokenType::Int, ptr)?;
         let identifier = parse_identifier(tokens, ptr)?;
         is_token(tokens, TokenType::OpenParen, ptr)?;
@@ -64,8 +62,7 @@ pub fn parse_function<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AF
 }
 
 // <statement> ::= "return" <exp> ";"
-pub fn parse_statement<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatement, ParseError> {
-        println!("parse_statement<'a>: {}", ptr);
+pub fn parse_statement(tokens: &mut [Token], ptr: &mut usize) -> Result<AStatement, ParseError> {
         is_token(tokens, TokenType::Return, ptr)?;
         let expr = parse_expression(tokens, ptr)?;
         is_token(tokens, TokenType::SemiColon, ptr)?;
@@ -74,8 +71,7 @@ pub fn parse_statement<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<A
 }
 
 // <exp> ::= <int> | <unop> <exp> | "(" <exp> ")"
-pub fn parse_expression<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AExpression, ParseError> {
-        println!("parse_expression<'a>: {}", ptr);
+pub fn parse_expression(tokens: &mut [Token], ptr: &mut usize) -> Result<AExpression, ParseError> {
         if let Ok(constant) = parse_constant(tokens, ptr) {
                 return Ok(AExpression::Constant(constant));
         }
@@ -96,38 +92,34 @@ pub fn parse_expression<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<
 }
 
 // <unop> ::= "-" | "~"
-pub fn parse_unary_operator<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Option<Unop> {
-        println!("parse_unary_operator<'a>: {}", ptr);
-        if let Ok(_) = is_token(tokens, TokenType::Minus, ptr) {
-                return Some(Unop::Negate);
+pub fn parse_unary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<Unop> {
+        if is_token(tokens, TokenType::Minus, ptr).is_ok() {
+                Some(Unop::Negate)
+        } else if is_token(tokens, TokenType::Tilde, ptr).is_ok() {
+                Some(Unop::Complement)
+        } else {
+                None
         }
-        if let Ok(_) = is_token(tokens, TokenType::Tilde, ptr) {
-                return Some(Unop::Complement);
-        }
-        None
 }
 
 // <identifier> ::= ? An identifier token ?
-pub fn parse_identifier<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AIdentifier, ParseError> {
-        println!("parse_identifier<'a>: {}", ptr);
+pub fn parse_identifier(tokens: &mut [Token], ptr: &mut usize) -> Result<AIdentifier, ParseError> {
         let (start, len) = is_token(tokens, TokenType::Identifier, ptr)?;
 
-        return Ok(AIdentifier { start, len });
+        Ok(AIdentifier { start, len })
 }
 
 // <int> ::= ? A constant token ?
-pub fn parse_constant<'a>(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AConstant, ParseError> {
-        println!("parse_constant<'a>: {}", ptr);
+pub fn parse_constant(tokens: &mut [Token], ptr: &mut usize) -> Result<AConstant, ParseError> {
         let (start, len) = is_token(tokens, TokenType::Constant, ptr)?;
 
-        return Ok(AConstant { start, len });
+        Ok(AConstant { start, len })
 }
 
-fn is_token<'a>(tokens: &mut Vec<Token>, wanted_token_type: TokenType, ptr: &mut usize) -> Result<(usize, usize), ParseError> {
+fn is_token(tokens: &mut [Token], wanted_token_type: TokenType, ptr: &mut usize) -> Result<(usize, usize), ParseError> {
         let Some(&Token { token_type, len, start }) = tokens.get(*ptr) else {
                 return Err(ParseError::NotEnoughTokens);
         };
-        println!("istoken: {:?}, ptr: {}", wanted_token_type, ptr);
 
         if token_type == wanted_token_type {
                 *ptr += 1;
