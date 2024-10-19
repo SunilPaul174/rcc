@@ -1,30 +1,34 @@
-use crate::parse::nodes::{AConstant, AExpression, AFunction, AIdentifier, AStatement};
+use crate::parse::nodes::{AConstant, AIdentifier, Unop};
 
-#[derive(Debug)]
-pub struct Imm(pub AConstant);
-impl From<AConstant> for Imm {
-        fn from(value: AConstant) -> Self { Imm(value) }
+impl From<AConstant> for Operand {
+        fn from(value: AConstant) -> Self { Operand::Imm(value) }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Operand {
-        Imm(Imm),
+        Imm(AConstant),
         Register(Register),
+        //usize is number of temporary variable
+        Pseudo(usize),
+        //usize is stack size
+        Stack(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Register {
-        EAX,
+        AX,
+        R10,
+}
+impl From<Register> for Operand {
+        fn from(value: Register) -> Self { Operand::Register(value) }
 }
 
-#[derive(Debug)]
-pub struct Mov {
-        pub src: Operand,
-        pub dest: Operand,
-}
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ASMInstruction {
-        Mov(Mov),
+        // src, dst
+        Mov(Operand, Operand),
+        Unary(Unop, Operand),
+        AllocateStack(usize),
         Ret,
 }
 
@@ -36,30 +40,4 @@ pub struct ASMProgram {
 pub struct ASMFunction {
         pub identifier: AIdentifier,
         pub instructions: Vec<ASMInstruction>,
-}
-
-impl From<AFunction> for ASMFunction {
-        fn from(value: AFunction) -> Self {
-                let identifier = value.identifier;
-                let AStatement {
-                        expr: AExpression::Constant(constant),
-                } = value.statement_body
-                else {
-                        todo!()
-                };
-
-                let imm = Imm::from(constant);
-
-                let mov_instruct = ASMInstruction::Mov(Mov {
-                        src: Operand::Imm(imm),
-                        dest: Operand::Register(Register::EAX),
-                });
-
-                let ret = ASMInstruction::Ret;
-
-                ASMFunction {
-                        identifier,
-                        instructions: vec![mov_instruct, ret],
-                }
-        }
 }

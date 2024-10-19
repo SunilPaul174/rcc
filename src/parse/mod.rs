@@ -32,7 +32,7 @@ pub enum ParseError {
 pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, ParseError> {
         // let mut tokens = program.state.tokens.iter();
         let mut ptr = 0;
-        let afunction = parse_function(&mut program.state.tokens, &mut ptr)?;
+        let functions = parse_function(&mut program.state.tokens, &mut ptr)?;
 
         if ptr < (program.state.tokens.len() - 1) {
                 return Err(ParseError::TooManyTokens);
@@ -41,7 +41,7 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Par
         Ok(Program {
                 state: Parsed {
                         code: program.state.code,
-                        program: AProgram { functions: vec![afunction] },
+                        program: AProgram { functions },
                 },
                 operation: program.operation,
         })
@@ -76,18 +76,24 @@ pub fn parse_expression(tokens: &mut [Token], ptr: &mut usize) -> Result<AExpres
                 return Ok(AExpression::Constant(constant));
         }
 
-        if let (Some(unop), Ok(expr)) = (parse_unary_operator(tokens, ptr), parse_expression(tokens, ptr)) {
-                return Ok(AExpression::Unop(unop, Box::new(expr)));
+        if let Ok(_) = is_token(tokens, TokenType::OpenParen, ptr) {
+                if let Ok(expr) = parse_expression(tokens, ptr) {
+                        if let Ok(_) = is_token(tokens, TokenType::CloseParen, ptr) {
+                                return Ok(expr);
+                        }
+                        *ptr -= 1;
+                }
+                *ptr -= 1;
         }
 
-        if let (Ok(_), Ok(expr), Ok(_)) = (
-                is_token(tokens, TokenType::OpenParen, ptr),
-                parse_expression(tokens, ptr),
-                is_token(tokens, TokenType::CloseParen, ptr),
-        ) {
-                return Ok(expr);
+        if let Some(unop) = parse_unary_operator(tokens, ptr) {
+                if let Ok(expr) = parse_expression(tokens, ptr) {
+                        return Ok(AExpression::Unop(unop, Box::new(expr)));
+                }
+                *ptr -= 1;
         }
 
+        println!("{:?}", tokens[*ptr]);
         Err(ParseError::InvalidTokenAt(*ptr))
 }
 
@@ -125,5 +131,6 @@ fn is_token(tokens: &mut [Token], wanted_token_type: TokenType, ptr: &mut usize)
                 *ptr += 1;
                 return Ok((start, len));
         }
+
         Err(ParseError::InvalidTokenAt(start))
 }

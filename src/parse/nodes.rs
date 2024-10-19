@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct AProgram {
-        pub functions: Vec<AFunction>,
+        pub functions: AFunction,
 }
 
 #[derive(Debug)]
@@ -9,7 +9,7 @@ pub struct AFunction {
         pub statement_body: AStatement,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct AIdentifier {
         pub start: usize,
         pub len: usize,
@@ -27,12 +27,12 @@ pub enum AExpression {
         Constant(AConstant),
         Unop(Unop, Box<AExpression>),
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Unop {
         Negate,
         Complement,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct AConstant {
         pub start: usize,
         pub len: usize,
