@@ -61,8 +61,36 @@ pub fn get_largest_match(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 
                 b';' => Some(TokenType::SemiColon),
                 b'-' => Some(TokenType::Minus),
                 b'~' => Some(TokenType::Tilde),
+                b'+' => Some(TokenType::Plus),
+                b'*' => Some(TokenType::Asterisk),
+                b'/' => Some(TokenType::ForwardSlash),
+                b'%' => Some(TokenType::Percent),
+                b'&' => Some(TokenType::BitwiseAND),
+                b'|' => Some(TokenType::BitwiseOr),
+                b'^' => Some(TokenType::BitwiseXOr),
                 _ => None,
         } {
+                if (token_type == TokenType::Minus) && (code[start + 1] == b'-') {
+                        return Some(Token {
+                                token_type: TokenType::Decrement,
+                                len: 2,
+                                start,
+                        });
+                }
+                if (token_type == TokenType::BitwiseAND) && (code[start + 1] == b'&') {
+                        return Some(Token {
+                                token_type: TokenType::LogicalAND,
+                                len: 2,
+                                start,
+                        });
+                }
+                if (token_type == TokenType::BitwiseOr) && (code[start + 1] == b'&') {
+                        return Some(Token {
+                                token_type: TokenType::LogicalOr,
+                                len: 2,
+                                start,
+                        });
+                }
                 return Some(Token { token_type, len: 1, start });
         }
 

@@ -10,11 +10,12 @@ pub struct Initialized {
 }
 impl State for Initialized {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Operation {
         Lex,
         ParseToCTree,
         ParseToASMTree,
+        ParseToTACTILETree,
         GenerateASM,
         Compile,
 }
@@ -38,18 +39,23 @@ fn get_request() -> Result<(Operation, PathBuf), InitializationError> {
         let mut args = std::env::args();
         args.next();
 
-        let Some(op) = args.next() else {
+        let first_two = (args.next(), args.next());
+
+        if let (Some(string), None) = first_two {
+                return Ok((Operation::Compile, PathBuf::from(string)));
+        }
+
+        let Some(op) = first_two.0 else {
                 return Err(InitializationError::NoOperationInput);
         };
 
-        let Some(file) = args.next() else {
-                return Err(InitializationError::NoFileInput);
-        };
+        let file = first_two.1.unwrap();
         let file = PathBuf::from(file);
 
         match op.as_str() {
                 "--lex" => Ok((Operation::Lex, file)),
                 "--parse" => Ok((Operation::ParseToCTree, file)),
+                "--tacky" => Ok((Operation::ParseToTACTILETree, file)),
                 "--codegen" => Ok((Operation::ParseToASMTree, file)),
                 "-S" => Ok((Operation::GenerateASM, file)),
                 "-C" => Ok((Operation::Compile, file)),

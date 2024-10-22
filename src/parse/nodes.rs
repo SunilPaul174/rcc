@@ -23,9 +23,15 @@ pub struct AStatement {
         pub expr: AExpression,
 }
 #[derive(Debug)]
-pub enum AExpression {
+pub enum AFactor {
         Constant(AConstant),
-        Unop(Unop, Box<AExpression>),
+        Unop(Unop, Box<AFactor>),
+        Expr(Box<AExpression>),
+}
+#[derive(Debug)]
+pub enum AExpression {
+        Factor(AFactor),
+        BinOp(BinOp, Box<AExpression>, Box<AExpression>),
 }
 #[derive(Debug, Clone, Copy)]
 pub enum Unop {
@@ -36,4 +42,17 @@ pub enum Unop {
 pub struct AConstant {
         pub start: usize,
         pub len: usize,
+}
+#[derive(Debug, Clone, Copy)]
+pub enum BinOp {
+        Add,
+        Subtract,
+        Multiply,
+        Divide,
+        Remainder,
+        // LeftShift,
+        // RightShift,
+        // BitwiseAnd,
+        // Or,
+        // XOr,
 }

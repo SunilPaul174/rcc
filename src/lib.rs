@@ -1,5 +1,6 @@
 #![feature(type_changing_struct_update)]
 #![feature(box_vec_non_null)]
+#![feature(let_chains)]
 
 use initialize::Operation;
 
