@@ -68,28 +68,21 @@ pub fn get_largest_match(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 
                 b'&' => Some(TokenType::BitwiseAND),
                 b'|' => Some(TokenType::BitwiseOr),
                 b'^' => Some(TokenType::BitwiseXOr),
+                b'=' => Some(TokenType::Equal),
+                b'<' => Some(TokenType::LessThan),
+                b'>' => Some(TokenType::MoreThan),
                 _ => None,
         } {
-                if (token_type == TokenType::Minus) && (code[start + 1] == b'-') {
-                        return Some(Token {
-                                token_type: TokenType::Decrement,
-                                len: 2,
-                                start,
-                        });
-                }
-                if (token_type == TokenType::BitwiseAND) && (code[start + 1] == b'&') {
-                        return Some(Token {
-                                token_type: TokenType::LogicalAND,
-                                len: 2,
-                                start,
-                        });
-                }
-                if (token_type == TokenType::BitwiseOr) && (code[start + 1] == b'&') {
-                        return Some(Token {
-                                token_type: TokenType::LogicalOr,
-                                len: 2,
-                                start,
-                        });
+                if let Some(token_type) = match (token_type, code[start + 1]) {
+                        (TokenType::Minus, b'-') => Some(TokenType::Decrement),
+                        (TokenType::BitwiseAND, b'&') => Some(TokenType::LogicalAnd),
+                        (TokenType::LessThan, b'<') => Some(TokenType::LeftShift),
+                        (TokenType::LessThan, b'=') => Some(TokenType::LessThanOrEqual),
+                        (TokenType::MoreThan, b'>') => Some(TokenType::RightShift),
+                        (TokenType::MoreThan, b'=') => Some(TokenType::MoreThanOrEqual),
+                        _ => None,
+                } {
+                        return Some(Token { token_type, len: 2, start });
                 }
                 return Some(Token { token_type, len: 1, start });
         }
@@ -129,6 +122,7 @@ pub fn get_largest_match(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 
         }
 
         let curr_slice = &code[start..start + len];
+        // println!("string: {}, start: {}, len: {}", String::from_utf8(curr_slice.to_vec()).unwrap(), start, len);
         let arr = &[curr_slice[0], *curr_slice.get(1)?, *curr_slice.last()?];
 
         if let Some(&token_type) = keyword_map.get(&arr) {

@@ -54,7 +54,7 @@ pub fn from_binop(binop: BinOp) -> Option<ASMBinary> {
 
 #[derive(Debug)]
 pub struct ASMProgram {
-        pub functions: Vec<ASMFunction>,
+        pub function: ASMFunction,
 }
 #[derive(Debug, Clone)]
 pub struct ASMFunction {

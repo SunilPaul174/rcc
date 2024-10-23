@@ -50,7 +50,7 @@ pub struct TACTILEProgram {
 impl From<AFunction> for TACTILEFunction {
         fn from(value: AFunction) -> Self {
                 let mut instructions = vec![];
-                let mut global = 0;
+                let mut global = 1;
 
                 let expr = value.statement_body.expr;
 

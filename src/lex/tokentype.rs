@@ -19,13 +19,18 @@ pub enum TokenType {
         ForwardSlash,
         Percent,
         Decrement,
+        Equal,
         BitwiseAND,
-        LogicalAND,
+        LogicalAnd,
         BitwiseOr,
         LogicalOr,
         BitwiseXOr,
         LeftShift,
         RightShift,
+        LessThan,
+        MoreThan,
+        LessThanOrEqual,
+        MoreThanOrEqual,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -13,7 +13,7 @@ pub struct Written {
 }
 impl State for Written {}
 pub fn write(program: Program<Compiled>) -> Program<Written> {
-        let code = func_to_vec(program.state.program.functions[0].clone(), &program.state.code);
+        let code = func_to_vec(program.state.program.function, &program.state.code);
 
         Program {
                 operation: program.operation,
@@ -38,7 +38,6 @@ pub static DIV: &[u8; 6] = b"\tidivl";
 
 pub static CDQ: &[u8; 5] = b"\tcdq\n";
 
-#[inline(always)]
 fn unop_to_slice(unop: Unop) -> &'static [u8] {
         match unop {
                 Unop::Negate => NEG,
@@ -46,7 +45,6 @@ fn unop_to_slice(unop: Unop) -> &'static [u8] {
         }
 }
 
-#[inline(always)]
 fn reg_to_slice(register: Register) -> &'static [u8] {
         match register {
                 Register::AX => EAX,
@@ -56,8 +54,7 @@ fn reg_to_slice(register: Register) -> &'static [u8] {
         }
 }
 
-#[inline(always)]
-fn the_real_stack(val: usize) -> i32 { -(((val + 1) as i32) * 4) }
+fn the_real_stack(val: usize) -> i32 { -((val as i32) * 4) }
 
 fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
         let mut instructions = Vec::new();

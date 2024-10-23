@@ -18,14 +18,13 @@ pub fn asm(program: Program<TACTILE>) -> Program<Compiled> {
         let aprogram = program.state.program;
         let code = program.state.code;
 
-        let func = ASMFunction::from(aprogram.function);
-        let functions = vec![func];
+        let function = ASMFunction::from(aprogram.function);
 
         Program {
                 operation: program.operation,
                 state: Compiled {
                         code,
-                        program: ASMProgram { functions },
+                        program: ASMProgram { function },
                 },
         }
 }
