@@ -19,7 +19,7 @@ pub struct Parsed {
 impl State for Parsed {}
 
 #[derive(Debug, Error)]
-pub enum ParseError {
+pub enum Error {
         #[error("Not enough tokens for a full program")]
         NotEnoughTokens,
         #[error("Invalid token {0}. Expected {1}")]
@@ -29,12 +29,12 @@ pub enum ParseError {
 }
 
 // <program> ::= <function>
-pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, ParseError> {
+pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Error> {
         let mut ptr = 0;
         let functions = parse_function(&mut program.state.tokens, &mut ptr)?;
 
         if ptr < program.state.tokens.len() {
-                return Err(ParseError::TooManyTokens);
+                return Err(Error::TooManyTokens);
         }
 
         Ok(Program {
@@ -47,7 +47,7 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Par
 }
 
 // <function> ::= "int" <identifier> "(" "void" ")" "{" <statement> "}"
-fn parse_function(tokens: &mut [Token], ptr: &mut usize) -> Result<AFunction, ParseError> {
+fn parse_function(tokens: &mut [Token], ptr: &mut usize) -> Result<AFunction, Error> {
         is_token(tokens, TokenType::Int, ptr)?;
         let identifier = parse_identifier(tokens, ptr)?;
         is_token(tokens, TokenType::OpenParen, ptr)?;
@@ -61,7 +61,7 @@ fn parse_function(tokens: &mut [Token], ptr: &mut usize) -> Result<AFunction, Pa
 }
 
 // <statement> ::= "return" <exp> ";"
-fn parse_statement(tokens: &mut [Token], ptr: &mut usize) -> Result<AStatement, ParseError> {
+fn parse_statement(tokens: &mut [Token], ptr: &mut usize) -> Result<AStatement, Error> {
         is_token(tokens, TokenType::Return, ptr)?;
         let expr = parse_expression(tokens, ptr, 0)?;
         is_token(tokens, TokenType::SemiColon, ptr)?;
@@ -70,12 +70,10 @@ fn parse_statement(tokens: &mut [Token], ptr: &mut usize) -> Result<AStatement, 
 }
 
 // <exp> ::= <factor> | <exp> <binop> <exp>
-fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_prec: usize) -> Result<AExpression, ParseError> {
+fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_prec: usize) -> Result<AExpression, Error> {
         let mut left = AExpression::Factor(parse_factor(tokens, ptr)?);
 
-        while let Some(operator) = parse_binary_operator(tokens, ptr)
-        // && precedence(operator) >= min_prec
-        {
+        while let Some(operator) = parse_binary_operator(tokens, ptr) {
                 if precedence(operator) < min_prec {
                         *ptr -= 1;
                         return Ok(left);
@@ -89,7 +87,7 @@ fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_prec: usize) -> R
 }
 
 // <factor> ::= <int> | <unop> <factor> | "(" <exp> ")"
-fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, ParseError> {
+fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, Error> {
         if let Ok(constant) = parse_constant(tokens, ptr) {
                 return Ok(AFactor::Constant(constant));
         }
@@ -111,7 +109,7 @@ fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, ParseE
                 *ptr -= 1;
         }
 
-        Err(ParseError::InvalidTokenAt(tokens[*ptr], TokenType::Int))
+        Err(Error::InvalidTokenAt(tokens[*ptr], TokenType::Int))
 }
 
 // <unop> ::= "-" | "~"
@@ -125,7 +123,7 @@ fn parse_unary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<Unop> {
         }
 }
 
-// <binop> ::= "-" | "+" | "*" | "/" | "%"
+// <binop> ::= "-" | "+" | "*" | "/" | "%" | "<<" | ">>" | "&" | "|" | | "^"
 fn parse_binary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<BinOp> {
         if is_token(tokens, TokenType::Minus, ptr).is_ok() {
                 Some(BinOp::Subtract)
@@ -137,28 +135,38 @@ fn parse_binary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<BinOp>
                 Some(BinOp::Divide)
         } else if is_token(tokens, TokenType::Percent, ptr).is_ok() {
                 Some(BinOp::Remainder)
+        } else if is_token(tokens, TokenType::LeftShift, ptr).is_ok() {
+                Some(BinOp::LeftShift)
+        } else if is_token(tokens, TokenType::RightShift, ptr).is_ok() {
+                Some(BinOp::RightShift)
+        } else if is_token(tokens, TokenType::BitwiseAnd, ptr).is_ok() {
+                Some(BinOp::And)
+        } else if is_token(tokens, TokenType::BitwiseOr, ptr).is_ok() {
+                Some(BinOp::Or)
+        } else if is_token(tokens, TokenType::BitwiseXOr, ptr).is_ok() {
+                Some(BinOp::XOr)
         } else {
                 None
         }
 }
 
 // <identifier> ::= ? An identifier token ?
-fn parse_identifier(tokens: &mut [Token], ptr: &mut usize) -> Result<AIdentifier, ParseError> {
+fn parse_identifier(tokens: &mut [Token], ptr: &mut usize) -> Result<AIdentifier, Error> {
         let (start, len) = is_token(tokens, TokenType::Identifier, ptr)?;
 
         Ok(AIdentifier { start, len })
 }
 
 // <int> ::= ? A constant token ?
-fn parse_constant(tokens: &mut [Token], ptr: &mut usize) -> Result<AConstant, ParseError> {
+fn parse_constant(tokens: &mut [Token], ptr: &mut usize) -> Result<AConstant, Error> {
         let (start, len) = is_token(tokens, TokenType::Constant, ptr)?;
 
         Ok(AConstant { start, len })
 }
 
-fn is_token(tokens: &mut [Token], wanted_token_type: TokenType, ptr: &mut usize) -> Result<(usize, usize), ParseError> {
+fn is_token(tokens: &mut [Token], wanted_token_type: TokenType, ptr: &mut usize) -> Result<(usize, usize), Error> {
         let Some(&Token { token_type, len, start }) = tokens.get(*ptr) else {
-                return Err(ParseError::NotEnoughTokens);
+                return Err(Error::NotEnoughTokens);
         };
 
         if token_type == wanted_token_type {
@@ -166,15 +174,16 @@ fn is_token(tokens: &mut [Token], wanted_token_type: TokenType, ptr: &mut usize)
                 return Ok((start, len));
         }
 
-        Err(ParseError::InvalidTokenAt(tokens[*ptr], wanted_token_type))
+        Err(Error::InvalidTokenAt(tokens[*ptr], wanted_token_type))
 }
 
 fn precedence(operator: BinOp) -> usize {
         match operator {
-                BinOp::Add => 45,
-                BinOp::Subtract => 45,
-                BinOp::Multiply => 50,
-                BinOp::Divide => 50,
-                BinOp::Remainder => 50,
+                BinOp::Add | BinOp::Subtract => 45,
+                BinOp::Multiply | BinOp::Divide | BinOp::Remainder => 50,
+                BinOp::LeftShift | BinOp::RightShift => 40,
+                BinOp::And => 37,
+                BinOp::XOr => 35,
+                BinOp::Or => 30,
         }
 }

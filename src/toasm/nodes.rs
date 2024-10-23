@@ -42,12 +42,22 @@ pub enum ASMBinary {
         Add,
         Subtract,
         Multiply,
+        LeftShift,
+        RightShift,
+        Or,
+        XOr,
+        And,
 }
 pub fn from_binop(binop: BinOp) -> Option<ASMBinary> {
         match binop {
                 BinOp::Add => Some(ASMBinary::Add),
                 BinOp::Multiply => Some(ASMBinary::Multiply),
                 BinOp::Subtract => Some(ASMBinary::Subtract),
+                BinOp::LeftShift => Some(ASMBinary::LeftShift),
+                BinOp::RightShift => Some(ASMBinary::RightShift),
+                BinOp::Or => Some(ASMBinary::Or),
+                BinOp::XOr => Some(ASMBinary::XOr),
+                BinOp::And => Some(ASMBinary::And),
                 _ => None,
         }
 }

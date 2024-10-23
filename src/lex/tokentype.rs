@@ -20,7 +20,7 @@ pub enum TokenType {
         Percent,
         Decrement,
         Equal,
-        BitwiseAND,
+        BitwiseAnd,
         LogicalAnd,
         BitwiseOr,
         LogicalOr,
@@ -31,6 +31,9 @@ pub enum TokenType {
         MoreThan,
         LessThanOrEqual,
         MoreThanOrEqual,
+        EqualTo,
+        LogicalNot,
+        NotEqualTo,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -44,5 +47,5 @@ impl Display for Token {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}, starting at {}, with length {}", self.token_type, self.start, self.len) }
 }
 impl Display for TokenType {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{:?}", self) }
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{self:?}") }
 }

@@ -11,18 +11,18 @@ use rcc::{
 
 fn main() {
         let res = initialize().unwrap_or_else(|f| {
-                eprintln!("{}", f);
+                eprintln!("{f}");
                 exit(1);
         });
         let res = lex(res).unwrap_or_else(|f| {
-                eprintln!("{}", f);
+                eprintln!("{f}");
                 exit(1);
         });
         if res.operation == Operation::Lex {
                 return;
         }
         let res = parse_program(res).unwrap_or_else(|f| {
-                eprintln!("{}", f);
+                eprintln!("{f}");
                 exit(1);
         });
         if res.operation == Operation::ParseToCTree {

@@ -1,10 +1,3 @@
-// TACTILE ADSL
-// program = Program(function_definition)
-// function_definition = Function(identifier, list instruction body)
-// instruction = Return(val) | Unary(unary_operator, val src, val dst)
-// val = Constant(int) | Var(identifier)
-// unary_operator = Complement | Negate
-
 use crate::{
         parse::{
                 nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, BinOp, Unop},

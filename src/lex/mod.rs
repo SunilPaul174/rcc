@@ -19,12 +19,12 @@ pub struct Lexed {
 impl State for Lexed {}
 
 #[derive(Debug, Error)]
-pub enum LexError {
+pub enum Error {
         #[error("There are no more valid tokens after {0}")]
         OutOfTokens(usize),
 }
 
-pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, LexError> {
+pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
         let keyword_map = HashMap::from([(INT, TokenType::Int), (VOID, TokenType::Void), (RETURN, TokenType::Return)]);
 
         let mut left = 0;
@@ -39,7 +39,7 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, LexError> {
                 }
 
                 let Some(token) = get_largest_match(&code, left, &keyword_map) else {
-                        return Err(LexError::OutOfTokens(left));
+                        return Err(Error::OutOfTokens(left));
                 };
 
                 left += token.len;
@@ -52,7 +52,7 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, LexError> {
         })
 }
 
-pub fn get_largest_match(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 3], TokenType>) -> Option<Token> {
+pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 3], TokenType, S>) -> Option<Token> {
         if let Some(token_type) = match code[start] {
                 b'(' => Some(TokenType::OpenParen),
                 b')' => Some(TokenType::CloseParen),
@@ -65,21 +65,24 @@ pub fn get_largest_match(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 
                 b'*' => Some(TokenType::Asterisk),
                 b'/' => Some(TokenType::ForwardSlash),
                 b'%' => Some(TokenType::Percent),
-                b'&' => Some(TokenType::BitwiseAND),
+                b'&' => Some(TokenType::BitwiseAnd),
                 b'|' => Some(TokenType::BitwiseOr),
                 b'^' => Some(TokenType::BitwiseXOr),
                 b'=' => Some(TokenType::Equal),
                 b'<' => Some(TokenType::LessThan),
                 b'>' => Some(TokenType::MoreThan),
+                b'!' => Some(TokenType::LogicalNot),
                 _ => None,
         } {
                 if let Some(token_type) = match (token_type, code[start + 1]) {
                         (TokenType::Minus, b'-') => Some(TokenType::Decrement),
-                        (TokenType::BitwiseAND, b'&') => Some(TokenType::LogicalAnd),
+                        (TokenType::BitwiseAnd, b'&') => Some(TokenType::LogicalAnd),
                         (TokenType::LessThan, b'<') => Some(TokenType::LeftShift),
                         (TokenType::LessThan, b'=') => Some(TokenType::LessThanOrEqual),
                         (TokenType::MoreThan, b'>') => Some(TokenType::RightShift),
                         (TokenType::MoreThan, b'=') => Some(TokenType::MoreThanOrEqual),
+                        (TokenType::Equal, b'=') => Some(TokenType::EqualTo),
+                        (TokenType::LogicalNot, b'=') => Some(TokenType::NotEqualTo),
                         _ => None,
                 } {
                         return Some(Token { token_type, len: 2, start });
@@ -122,7 +125,6 @@ pub fn get_largest_match(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 
         }
 
         let curr_slice = &code[start..start + len];
-        // println!("string: {}, start: {}, len: {}", String::from_utf8(curr_slice.to_vec()).unwrap(), start, len);
         let arr = &[curr_slice[0], *curr_slice.get(1)?, *curr_slice.last()?];
 
         if let Some(&token_type) = keyword_map.get(&arr) {

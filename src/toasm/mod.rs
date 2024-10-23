@@ -34,7 +34,7 @@ fn from_tactile(value: TACTILEInstruction) -> Vec<ASMInstruction> {
                 TACTILEInstruction::Return(val) => vec![ASMInstruction::Mov(val_to_op(val), Operand::Register(Register::AX)), ASMInstruction::Ret],
                 TACTILEInstruction::Unary(unop, src, dst) => vec![ASMInstruction::Mov(val_to_op(src), val_to_op(dst)), ASMInstruction::Unary(unop, val_to_op(dst))],
                 TACTILEInstruction::Binary(binop, src1, src2, dst) => match binop {
-                        BinOp::Add | BinOp::Subtract | BinOp::Multiply => {
+                        BinOp::Add | BinOp::Subtract | BinOp::Multiply | BinOp::LeftShift | BinOp::RightShift | BinOp::And | BinOp::Or | BinOp::XOr => {
                                 vec![
                                         ASMInstruction::Mov(val_to_op(src1), val_to_op(dst)),
                                         ASMInstruction::Binary(from_binop(binop).unwrap(), val_to_op(src2), val_to_op(dst)),

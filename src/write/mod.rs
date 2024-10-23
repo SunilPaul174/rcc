@@ -34,6 +34,12 @@ pub static NEG: &[u8; 5] = b"\tnegl";
 pub static ADD: &[u8] = b"\taddl";
 pub static SUB: &[u8] = b"\tsubl";
 pub static MUL: &[u8] = b"\timull";
+pub static LEFTSHIFT: &[u8] = b"\tshll";
+pub static RIGHTSHIFT: &[u8] = b"\tshrl";
+pub static AND: &[u8] = b"\tandl";
+pub static OR: &[u8] = b"\torl";
+pub static XOR: &[u8] = b"\txorl";
+
 pub static DIV: &[u8; 6] = b"\tidivl";
 
 pub static CDQ: &[u8; 5] = b"\tcdq\n";
@@ -110,6 +116,11 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                                 ASMBinary::Add => ADD,
                                 ASMBinary::Subtract => SUB,
                                 ASMBinary::Multiply => MUL,
+                                ASMBinary::LeftShift => LEFTSHIFT,
+                                ASMBinary::RightShift => RIGHTSHIFT,
+                                ASMBinary::Or => OR,
+                                ASMBinary::XOr => XOR,
+                                ASMBinary::And => AND,
                         });
                         instructions.push(b' ');
                         extend_from_operand(src, instructions);
