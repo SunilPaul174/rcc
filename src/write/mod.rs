@@ -29,30 +29,14 @@ pub static R11D: &[u8] = b"%r11d";
 pub static PERCENT: u8 = b'%';
 pub static DOLLAR: u8 = b'$';
 
-pub static NOT: &[u8; 4] = b"notl";
-pub static NEG: &[u8; 4] = b"negl";
-pub static ADD: &[u8] = b"addl";
-pub static SUB: &[u8] = b"subl";
-pub static MUL: &[u8] = b"imull";
+pub static NOT: &[u8; 5] = b"\tnotl";
+pub static NEG: &[u8; 5] = b"\tnegl";
+pub static ADD: &[u8] = b"\taddl";
+pub static SUB: &[u8] = b"\tsubl";
+pub static MUL: &[u8] = b"\timull";
 pub static DIV: &[u8; 6] = b"\tidivl";
 
 pub static CDQ: &[u8; 5] = b"\tcdq\n";
-
-fn unop_to_slice(unop: Unop) -> &'static [u8] {
-        match unop {
-                Unop::Negate => NEG,
-                Unop::Complement => NOT,
-        }
-}
-
-fn reg_to_slice(register: Register) -> &'static [u8] {
-        match register {
-                Register::AX => EAX,
-                Register::R10 => R10D,
-                Register::DX => DX,
-                Register::R11 => R11D,
-        }
-}
 
 fn the_real_stack(val: usize) -> i32 { -((val as i32) * 4) }
 
@@ -74,7 +58,12 @@ fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
                         instructions.push(DOLLAR);
                         instructions.extend_from_slice(&code[start..start + len]);
                 }
-                Operand::Register(register) => instructions.extend(reg_to_slice(register)),
+                Operand::Register(register) => instructions.extend(match register {
+                        Register::AX => EAX,
+                        Register::R10 => R10D,
+                        Register::DX => DX,
+                        Register::R11 => R11D,
+                }),
                 Operand::Stack(stack_value) => {
                         let val = the_real_stack(stack_value).to_string().into_bytes();
                         instructions.extend(val);
@@ -102,8 +91,10 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         instructions.push(b'\n');
                 }
                 ASMInstruction::Unary(unop, operand) => {
-                        instructions.push(b'\t');
-                        instructions.extend_from_slice(unop_to_slice(unop));
+                        instructions.extend_from_slice(match unop {
+                                Unop::Negate => NEG,
+                                Unop::Complement => NOT,
+                        });
                         instructions.push(b' ');
                         extend_from_operand(operand, instructions);
                         instructions.push(b'\n');
@@ -115,8 +106,11 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                 }
                 ASMInstruction::Ret => instructions.extend_from_slice(b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n"),
                 ASMInstruction::Binary(asmbinary, src, dst) => {
-                        instructions.push(b'\t');
-                        instructions.extend(binop_to_slice(asmbinary));
+                        instructions.extend(match asmbinary {
+                                ASMBinary::Add => ADD,
+                                ASMBinary::Subtract => SUB,
+                                ASMBinary::Multiply => MUL,
+                        });
                         instructions.push(b' ');
                         extend_from_operand(src, instructions);
                         instructions.push(b',');
@@ -130,13 +124,5 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         instructions.push(b'\n');
                 }
                 ASMInstruction::Cdq => instructions.extend_from_slice(CDQ),
-        }
-}
-
-fn binop_to_slice(asmbinary: ASMBinary) -> &'static [u8] {
-        match asmbinary {
-                ASMBinary::Add => ADD,
-                ASMBinary::Subtract => SUB,
-                ASMBinary::Multiply => MUL,
         }
 }
