@@ -76,33 +76,33 @@ impl From<TACTILEFunction> for ASMFunction {
                                         ASMInstruction::Mov(Operand::Register(Register::DX), val_to_op(dst)),
                                 ]),
                                 BinOp::MoreThan => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::G, val_to_op(dst)),
                                 ]),
                                 BinOp::MoreThanOrEqual => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::GE, val_to_op(dst)),
                                 ]),
                                 BinOp::EqualTo => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::E, val_to_op(dst)),
                                 ]),
                                 BinOp::NotEqualTo => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::NE, val_to_op(dst)),
                                 ]),
                                 BinOp::LessThan => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::L, val_to_op(dst)),
                                 ]),
                                 BinOp::LessThanOrEqual => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::LE, val_to_op(dst)),
                                 ]),
 

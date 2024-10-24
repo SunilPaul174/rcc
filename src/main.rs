@@ -21,18 +21,18 @@ fn main() {
         if res.operation == Operation::Lex {
                 return;
         }
-        let res = parse_program(res).unwrap_or_else(|f| {
+        let res = dbg!(parse_program(res)).unwrap_or_else(|f| {
                 eprintln!("{f}");
                 exit(1);
         });
         if res.operation == Operation::ParseToCTree {
                 return;
         }
-        let res = TACTILE(res);
+        let res = dbg!(TACTILE(res));
         if res.operation == Operation::ParseToTACTILETree {
                 return;
         }
-        let res = asm(res);
+        let res = dbg!(asm(res));
         if res.operation == Operation::ParseToASMTree {
                 return;
         }

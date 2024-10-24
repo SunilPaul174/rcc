@@ -167,29 +167,14 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                 }
                 ASMInstruction::JmpCC(cond_code, label) => {
                         instructions.extend_from_slice(b"\tj");
-                        instructions.extend_from_slice(match cond_code {
-                                CondCode::E => b"e ",
-                                CondCode::NE => b"ne ",
-                                CondCode::G => b"g ",
-                                CondCode::GE => b"ge ",
-                                CondCode::L => b"l ",
-                                CondCode::LE => b"le ",
-                        });
+                        instructions.extend_from_slice(cond_code_to_slice(cond_code));
                         instructions.extend_from_slice(&[b'.', b'L']);
                         instructions.extend_from_slice(&label.0.to_string().into_bytes());
                         instructions.push(b'\n');
                 }
                 ASMInstruction::SetCC(cond_code, op1) => {
                         instructions.extend_from_slice(b"\tset");
-                        instructions.extend_from_slice(match cond_code {
-                                CondCode::E => b"e ",
-                                CondCode::NE => b"ne ",
-                                CondCode::G => b"g ",
-                                CondCode::GE => b"ge ",
-                                CondCode::L => b"l ",
-                                CondCode::LE => b"le ",
-                        });
-                        // instructions.extend_from_slice(&[b'.', b'L']);
+                        instructions.extend_from_slice(cond_code_to_slice(cond_code));
                         extend_from_operand(op1, instructions, true);
                         instructions.push(b'\n');
                 }
@@ -198,5 +183,16 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         instructions.extend_from_slice(&label.0.to_string().into_bytes());
                         instructions.extend_from_slice(b":\n");
                 }
+        }
+}
+
+fn cond_code_to_slice(cond_code: CondCode) -> &'static [u8] {
+        match cond_code {
+                CondCode::E => b"e ",
+                CondCode::NE => b"ne ",
+                CondCode::G => b"g ",
+                CondCode::GE => b"ge ",
+                CondCode::L => b"l ",
+                CondCode::LE => b"le ",
         }
 }
