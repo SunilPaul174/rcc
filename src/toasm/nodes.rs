@@ -1,6 +1,6 @@
 use crate::{
         parse::nodes::{AIdentifier, BinOp, Unop},
-        tactile::Constant,
+        tactile::{Constant, Label},
 };
 
 impl From<Constant> for Operand {
@@ -34,10 +34,25 @@ pub enum ASMInstruction {
         Mov(Operand, Operand),
         Unary(Unop, Operand),
         AllocateStack(usize),
+        Cmp(Operand, Operand),
         Binary(ASMBinary, Operand, Operand),
         IDiv(Operand),
         Cdq,
+        Jmp(Label),
+        JmpCC(CondCode, Label),
+        SetCC(CondCode, Operand),
+        Label(Label),
         Ret,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CondCode {
+        E,
+        NE,
+        G,
+        GE,
+        L,
+        LE,
 }
 
 #[derive(Debug, Clone, Copy)]

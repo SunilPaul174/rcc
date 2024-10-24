@@ -55,7 +55,7 @@ fn get_request() -> Result<(Operation, PathBuf), Error> {
         match op.as_str() {
                 "--lex" => Ok((Operation::Lex, file)),
                 "--parse" => Ok((Operation::ParseToCTree, file)),
-                "--tacky" => Ok((Operation::ParseToTACTILETree, file)),
+                "--tacky" | "--tactile" => Ok((Operation::ParseToTACTILETree, file)),
                 "--codegen" => Ok((Operation::ParseToASMTree, file)),
                 "-S" => Ok((Operation::GenerateASM, file)),
                 "-C" => Ok((Operation::Compile, file)),

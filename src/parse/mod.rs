@@ -76,14 +76,14 @@ fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_prec: usize) -> R
         while let Some(operator) = parse_binary_operator(tokens, ptr) {
                 if precedence(operator) < min_prec {
                         *ptr -= 1;
-                        return dbg!(Ok(left));
+                        return Ok(left);
                 }
 
                 let right = parse_expression(tokens, ptr, precedence(operator) + 1)?;
                 left = AExpression::BinOp(operator, Box::new(left), Box::new(right));
         }
 
-        dbg!(Ok(left))
+        Ok(left)
 }
 
 // <factor> ::= <int> | <unop> <factor> | "(" <exp> ")"

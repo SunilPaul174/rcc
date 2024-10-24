@@ -141,5 +141,10 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         instructions.push(b'\n');
                 }
                 ASMInstruction::Cdq => instructions.extend_from_slice(CDQ),
+                ASMInstruction::Cmp(operand, operand1) => todo!(),
+                ASMInstruction::Jmp(label) => todo!(),
+                ASMInstruction::JmpCC(cond_code, label) => todo!(),
+                ASMInstruction::SetCC(cond_code, label) => todo!(),
+                ASMInstruction::Label(label) => todo!(),
         }
 }
