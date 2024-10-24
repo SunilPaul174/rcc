@@ -71,7 +71,7 @@ pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, k
                 b'=' => Some(TokenType::Equal),
                 b'<' => Some(TokenType::LessThan),
                 b'>' => Some(TokenType::MoreThan),
-                b'!' => Some(TokenType::LogicalNot),
+                b'!' => Some(TokenType::Not),
                 _ => None,
         } {
                 if let Some(token_type) = match (token_type, code[start + 1]) {
@@ -82,7 +82,8 @@ pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, k
                         (TokenType::MoreThan, b'>') => Some(TokenType::RightShift),
                         (TokenType::MoreThan, b'=') => Some(TokenType::MoreThanOrEqual),
                         (TokenType::Equal, b'=') => Some(TokenType::EqualTo),
-                        (TokenType::LogicalNot, b'=') => Some(TokenType::NotEqualTo),
+                        (TokenType::Not, b'=') => Some(TokenType::NotEqualTo),
+                        (TokenType::BitwiseOr, b'|') => Some(TokenType::LogicalOr),
                         _ => None,
                 } {
                         return Some(Token { token_type, len: 2, start });

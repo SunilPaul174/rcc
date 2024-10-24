@@ -100,6 +100,7 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         instructions.extend_from_slice(match unop {
                                 Unop::Negate => NEG,
                                 Unop::Complement => NOT,
+                                Unop::Not => todo!(),
                         });
                         instructions.push(b' ');
                         extend_from_operand(operand, instructions);

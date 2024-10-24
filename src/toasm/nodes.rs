@@ -55,9 +55,9 @@ pub fn from_binop(binop: BinOp) -> Option<ASMBinary> {
                 BinOp::Subtract => Some(ASMBinary::Subtract),
                 BinOp::LeftShift => Some(ASMBinary::LeftShift),
                 BinOp::RightShift => Some(ASMBinary::RightShift),
-                BinOp::Or => Some(ASMBinary::Or),
-                BinOp::XOr => Some(ASMBinary::XOr),
-                BinOp::And => Some(ASMBinary::And),
+                BinOp::BitwiseOr => Some(ASMBinary::Or),
+                BinOp::BitwiseXOr => Some(ASMBinary::XOr),
+                BinOp::BitwiseAnd => Some(ASMBinary::And),
                 _ => None,
         }
 }

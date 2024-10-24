@@ -37,6 +37,8 @@ pub enum AExpression {
 pub enum Unop {
         Negate,
         Complement,
+        // !
+        Not,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct AConstant {
@@ -52,7 +54,15 @@ pub enum BinOp {
         Remainder,
         LeftShift,
         RightShift,
-        And,
-        Or,
-        XOr,
+        BitwiseAnd,
+        LogicalAnd,
+        BitwiseOr,
+        LogicalOr,
+        EqualTo,
+        NotEqualTo,
+        LessThan,
+        LessThanOrEqual,
+        MoreThan,
+        MoreThanOrEqual,
+        BitwiseXOr,
 }

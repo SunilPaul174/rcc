@@ -76,14 +76,14 @@ fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_prec: usize) -> R
         while let Some(operator) = parse_binary_operator(tokens, ptr) {
                 if precedence(operator) < min_prec {
                         *ptr -= 1;
-                        return Ok(left);
+                        return dbg!(Ok(left));
                 }
 
                 let right = parse_expression(tokens, ptr, precedence(operator) + 1)?;
                 left = AExpression::BinOp(operator, Box::new(left), Box::new(right));
         }
 
-        Ok(left)
+        dbg!(Ok(left))
 }
 
 // <factor> ::= <int> | <unop> <factor> | "(" <exp> ")"
@@ -112,39 +112,47 @@ fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, Error>
         Err(Error::InvalidTokenAt(tokens[*ptr], TokenType::Int))
 }
 
-// <unop> ::= "-" | "~"
+// <unop> ::= "-" | "~" | "!"
 fn parse_unary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<Unop> {
-        if is_token(tokens, TokenType::Minus, ptr).is_ok() {
-                Some(Unop::Negate)
-        } else if is_token(tokens, TokenType::Tilde, ptr).is_ok() {
-                Some(Unop::Complement)
+        if let Some(unop) = match tokens[*ptr].token_type {
+                TokenType::Minus => Some(Unop::Negate),
+                TokenType::Tilde => Some(Unop::Complement),
+                TokenType::Not => Some(Unop::Not),
+                _ => None,
+        } {
+                *ptr += 1;
+                Some(unop)
         } else {
                 None
         }
 }
 
 // <binop> ::= "-" | "+" | "*" | "/" | "%" | "<<" | ">>" | "&" | "|" | | "^"
+// | "&&" | "||" | "==" | "!=" | "<" | "<=" | ">" | ">="
 fn parse_binary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<BinOp> {
-        if is_token(tokens, TokenType::Minus, ptr).is_ok() {
-                Some(BinOp::Subtract)
-        } else if is_token(tokens, TokenType::Plus, ptr).is_ok() {
-                Some(BinOp::Add)
-        } else if is_token(tokens, TokenType::Asterisk, ptr).is_ok() {
-                Some(BinOp::Multiply)
-        } else if is_token(tokens, TokenType::ForwardSlash, ptr).is_ok() {
-                Some(BinOp::Divide)
-        } else if is_token(tokens, TokenType::Percent, ptr).is_ok() {
-                Some(BinOp::Remainder)
-        } else if is_token(tokens, TokenType::LeftShift, ptr).is_ok() {
-                Some(BinOp::LeftShift)
-        } else if is_token(tokens, TokenType::RightShift, ptr).is_ok() {
-                Some(BinOp::RightShift)
-        } else if is_token(tokens, TokenType::BitwiseAnd, ptr).is_ok() {
-                Some(BinOp::And)
-        } else if is_token(tokens, TokenType::BitwiseOr, ptr).is_ok() {
-                Some(BinOp::Or)
-        } else if is_token(tokens, TokenType::BitwiseXOr, ptr).is_ok() {
-                Some(BinOp::XOr)
+        if let Some(binop) = match tokens[*ptr].token_type {
+                TokenType::Minus => Some(BinOp::Subtract),
+                TokenType::Plus => Some(BinOp::Add),
+                TokenType::Asterisk => Some(BinOp::Multiply),
+                TokenType::ForwardSlash => Some(BinOp::Divide),
+                TokenType::Percent => Some(BinOp::Remainder),
+                TokenType::BitwiseAnd => Some(BinOp::BitwiseAnd),
+                TokenType::LogicalAnd => Some(BinOp::LogicalAnd),
+                TokenType::BitwiseOr => Some(BinOp::BitwiseOr),
+                TokenType::LogicalOr => Some(BinOp::LogicalOr),
+                TokenType::BitwiseXOr => Some(BinOp::BitwiseXOr),
+                TokenType::LeftShift => Some(BinOp::LeftShift),
+                TokenType::RightShift => Some(BinOp::RightShift),
+                TokenType::LessThan => Some(BinOp::LessThan),
+                TokenType::MoreThan => Some(BinOp::MoreThan),
+                TokenType::LessThanOrEqual => Some(BinOp::LessThanOrEqual),
+                TokenType::MoreThanOrEqual => Some(BinOp::MoreThanOrEqual),
+                TokenType::EqualTo => Some(BinOp::EqualTo),
+                TokenType::NotEqualTo => Some(BinOp::NotEqualTo),
+                _ => None,
+        } {
+                *ptr += 1;
+                Some(binop)
         } else {
                 None
         }
@@ -179,11 +187,23 @@ fn is_token(tokens: &mut [Token], wanted_token_type: TokenType, ptr: &mut usize)
 
 fn precedence(operator: BinOp) -> usize {
         match operator {
-                BinOp::Add | BinOp::Subtract => 45,
-                BinOp::Multiply | BinOp::Divide | BinOp::Remainder => 50,
-                BinOp::LeftShift | BinOp::RightShift => 40,
-                BinOp::And => 37,
-                BinOp::XOr => 35,
-                BinOp::Or => 30,
+                BinOp::Multiply => 50,
+                BinOp::Divide => 50,
+                BinOp::Remainder => 50,
+                BinOp::Add => 45,
+                BinOp::Subtract => 45,
+                BinOp::LeftShift => 37,
+                BinOp::RightShift => 37,
+                BinOp::LessThan => 35,
+                BinOp::LessThanOrEqual => 35,
+                BinOp::MoreThan => 35,
+                BinOp::MoreThanOrEqual => 35,
+                BinOp::EqualTo => 30,
+                BinOp::NotEqualTo => 30,
+                BinOp::BitwiseAnd => 20,
+                BinOp::BitwiseXOr => 17,
+                BinOp::BitwiseOr => 15,
+                BinOp::LogicalAnd => 10,
+                BinOp::LogicalOr => 5,
         }
 }

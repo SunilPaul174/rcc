@@ -32,7 +32,7 @@ pub enum TokenType {
         LessThanOrEqual,
         MoreThanOrEqual,
         EqualTo,
-        LogicalNot,
+        Not,
         NotEqualTo,
 }
 
