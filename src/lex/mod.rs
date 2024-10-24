@@ -20,8 +20,8 @@ impl State for Lexed {}
 
 #[derive(Debug, Error)]
 pub enum Error {
-        #[error("There are no more valid tokens after {0}")]
-        OutOfTokens(usize),
+        #[error("There are no more valid tokens after {0}, {1:?}")]
+        OutOfTokens(usize, Vec<Token>),
 }
 
 pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
@@ -39,7 +39,7 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
                 }
 
                 let Some(token) = get_largest_match(&code, left, &keyword_map) else {
-                        return Err(Error::OutOfTokens(left));
+                        return Err(Error::OutOfTokens(left, tokens));
                 };
 
                 left += token.len;
@@ -74,7 +74,12 @@ pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, k
                 b'!' => Some(TokenType::Not),
                 _ => None,
         } {
-                if let Some(token_type) = match (token_type, code[start + 1]) {
+                let temp = code.get(start + 1);
+                if temp == None {
+                        return Some(Token { token_type, len: 1, start });
+                }
+
+                if let Some(token_type) = match (token_type, temp.unwrap()) {
                         (TokenType::Minus, b'-') => Some(TokenType::Decrement),
                         (TokenType::BitwiseAnd, b'&') => Some(TokenType::LogicalAnd),
                         (TokenType::LessThan, b'<') => Some(TokenType::LeftShift),
@@ -91,30 +96,20 @@ pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, k
                 return Some(Token { token_type, len: 1, start });
         }
 
-        let is_identifier = !code[start].is_ascii_digit();
-        let mut is_constant = code[start].is_ascii_digit();
-        if !is_identifier && !is_constant {
+        let is_constant = code[start].is_ascii_digit();
+        if !(code[start].is_ascii_alphabetic() | code[start].is_ascii_digit() | (code[start] == b'_')) {
                 return None;
         }
         let mut len = 0;
 
         for &i in &code[start..] {
-                let (is_char, is_digit) = (i.is_ascii_alphabetic(), i.is_ascii_digit());
-
-                if !is_char && !is_digit {
+                if !(i.is_ascii_alphabetic() | i.is_ascii_digit() | (i == b'_')) {
                         break;
                 }
-
-                if is_constant && is_char {
-                        is_constant = false;
-                }
-                if !is_identifier && !is_constant {
+                if is_constant && (!i.is_ascii_digit()) {
                         return None;
                 }
                 len += 1;
-        }
-        if !is_identifier && !is_constant {
-                return None;
         }
 
         if is_constant {
@@ -126,7 +121,14 @@ pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, k
         }
 
         let curr_slice = &code[start..start + len];
-        let arr = &[curr_slice[0], *curr_slice.get(1)?, *curr_slice.last()?];
+        let first = *curr_slice.get(0)?;
+        let second;
+        if let Some(&res) = curr_slice.get(1) {
+                second = res;
+        } else {
+                second = first;
+        }
+        let arr = &[first, second, *curr_slice.last()?];
 
         if let Some(&token_type) = keyword_map.get(&arr) {
                 return Some(Token { token_type, len, start });

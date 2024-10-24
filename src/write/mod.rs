@@ -126,6 +126,9 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         instructions.push(b'\n');
                 }
                 ASMInstruction::AllocateStack(n) => {
+                        if n == 0 {
+                                return;
+                        }
                         instructions.extend(b"\tpushq %rbp\n\tmovq %rsp, %rbp\n\tsubq $");
                         instructions.extend_from_slice(&(-the_real_stack(n)).to_string().into_bytes());
                         instructions.extend(b", %rsp\n");
