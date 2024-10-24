@@ -62,6 +62,11 @@ fn from_tactile(value: TACTILEInstruction) -> Vec<ASMInstruction> {
                         BinOp::MoreThan => todo!(),
                         BinOp::MoreThanOrEqual => todo!(),
                 },
+                TACTILEInstruction::Copy(value, value1) => todo!(),
+                TACTILEInstruction::Jump(label) => todo!(),
+                TACTILEInstruction::JumpIfZero(value, label) => todo!(),
+                TACTILEInstruction::JumpIfNotZero(value, label) => todo!(),
+                TACTILEInstruction::Label(label) => todo!(),
         }
 }
 

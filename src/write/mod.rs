@@ -1,5 +1,6 @@
 use crate::{
         parse::nodes::{AConstant, AIdentifier, Unop},
+        tactile::Constant,
         toasm::{
                 nodes::{ASMBinary, ASMFunction, ASMInstruction, Operand, Register},
                 Compiled,
@@ -60,9 +61,13 @@ fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
         instructions.push(b'\n');
 
         let extend_from_operand = |value, instructions: &mut Vec<u8>| match value {
-                Operand::Imm(AConstant { start, len }) => {
+                Operand::Imm(Constant::A(AConstant { start, len })) => {
                         instructions.push(DOLLAR);
                         instructions.extend_from_slice(&code[start..start + len]);
+                }
+                Operand::Imm(Constant::S(n)) => {
+                        instructions.push(DOLLAR);
+                        instructions.extend_from_slice(&n.to_string().into_bytes());
                 }
                 Operand::Register(register) => instructions.extend(match register {
                         Register::AX => EAX,

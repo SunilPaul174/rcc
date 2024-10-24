@@ -1,12 +1,15 @@
-use crate::parse::nodes::{AConstant, AIdentifier, BinOp, Unop};
+use crate::{
+        parse::nodes::{AIdentifier, BinOp, Unop},
+        tactile::Constant,
+};
 
-impl From<AConstant> for Operand {
-        fn from(value: AConstant) -> Self { Operand::Imm(value) }
+impl From<Constant> for Operand {
+        fn from(value: Constant) -> Self { Operand::Imm(value) }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Operand {
-        Imm(AConstant),
+        Imm(Constant),
         Register(Register),
         //usize is number of temporary variable
         Pseudo(usize),

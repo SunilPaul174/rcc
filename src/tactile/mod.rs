@@ -18,8 +18,14 @@ impl State for TACTILE {}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Value {
-        Constant(AConstant),
+        Constant(Constant),
         Var(Identifier),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Constant {
+        A(AConstant),
+        S(i64),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -27,7 +33,15 @@ pub enum TACTILEInstruction {
         Return(Value),
         Unary(Unop, Value, Value),
         Binary(BinOp, Value, Value, Value),
+        Copy(Value, Value),
+        Jump(Label),
+        JumpIfZero(Value, Label),
+        JumpIfNotZero(Value, Label),
+        Label(Label),
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct Label(pub usize);
 
 #[derive(Debug, Clone)]
 pub struct TACTILEFunction {
@@ -43,11 +57,12 @@ pub struct TACTILEProgram {
 impl From<AFunction> for TACTILEFunction {
         fn from(value: AFunction) -> Self {
                 let mut instructions = vec![];
-                let mut global = 1;
+                let mut global_max_identifier = 1;
+                let mut global_max_label = 1;
 
                 let expr = value.statement_body.expr;
 
-                let val = emit_tacky(expr, &mut instructions, &mut global);
+                let val = emit_tacky(expr, &mut instructions, &mut global_max_identifier, &mut global_max_label);
                 instructions.push(TACTILEInstruction::Return(val));
 
                 TACTILEFunction {
@@ -57,25 +72,71 @@ impl From<AFunction> for TACTILEFunction {
         }
 }
 
-fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, tmp: &mut usize) -> Value {
+fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, max_identifier: &mut usize, max_label: &mut usize) -> Value {
         match value {
-                AExpression::Factor(AFactor::Constant(n)) => Value::Constant(n),
+                AExpression::Factor(AFactor::Constant(n)) => Value::Constant(Constant::A(n)),
                 AExpression::Factor(AFactor::Unop(unop, afactor)) => {
-                        let src = emit_tacky(AExpression::Factor(*afactor), instructions, tmp);
-                        let dst = Value::Var(Identifier(*tmp));
-                        *tmp += 1;
+                        let src = emit_tacky(AExpression::Factor(*afactor), instructions, max_identifier, max_label);
+                        let dst = Value::Var(Identifier(*max_identifier));
+                        *max_identifier += 1;
                         instructions.push(TACTILEInstruction::Unary(unop, src, dst));
                         dst
                 }
-                AExpression::BinOp(bin_op, src, dst) => {
-                        let v1 = emit_tacky(*src, instructions, tmp);
-                        let v2 = emit_tacky(*dst, instructions, tmp);
-                        let dst = Value::Var(Identifier(*tmp));
-                        *tmp += 1;
-                        instructions.push(TACTILEInstruction::Binary(bin_op, v1, v2, dst));
-                        dst
-                }
-                AExpression::Factor(AFactor::Expr(expr)) => emit_tacky(*expr, instructions, tmp),
+                AExpression::BinOp(binop, src, dst) => match binop {
+                        BinOp::LogicalOr => {
+                                let false_label = Label(*max_label);
+                                *max_label += 1;
+                                let end_label = Label(*max_label);
+                                *max_label += 1;
+
+                                let v1 = emit_tacky(*src, instructions, max_identifier, max_label);
+                                instructions.push(TACTILEInstruction::JumpIfZero(v1, false_label));
+                                let v2 = emit_tacky(*dst, instructions, max_identifier, max_label);
+                                instructions.push(TACTILEInstruction::JumpIfZero(v2, false_label));
+
+                                let dst = Value::Var(Identifier(*max_identifier));
+                                *max_identifier += 1;
+
+                                instructions.push(TACTILEInstruction::Copy(Value::Constant(Constant::S(1)), dst));
+                                instructions.push(TACTILEInstruction::Jump(end_label));
+                                instructions.push(TACTILEInstruction::Label(false_label));
+                                instructions.push(TACTILEInstruction::Copy(Value::Constant(Constant::S(0)), dst));
+                                instructions.push(TACTILEInstruction::Label(end_label));
+
+                                dst
+                        }
+                        BinOp::LogicalAnd => {
+                                let false_label = Label(*max_label);
+                                *max_label += 1;
+                                let end_label = Label(*max_label);
+                                *max_label += 1;
+
+                                let v1 = emit_tacky(*src, instructions, max_identifier, max_label);
+                                instructions.push(TACTILEInstruction::JumpIfNotZero(v1, false_label));
+                                let v2 = emit_tacky(*dst, instructions, max_identifier, max_label);
+                                instructions.push(TACTILEInstruction::JumpIfNotZero(v2, false_label));
+
+                                let dst = Value::Var(Identifier(*max_identifier));
+                                *max_identifier += 1;
+
+                                instructions.push(TACTILEInstruction::Copy(Value::Constant(Constant::S(1)), dst));
+                                instructions.push(TACTILEInstruction::Jump(end_label));
+                                instructions.push(TACTILEInstruction::Label(false_label));
+                                instructions.push(TACTILEInstruction::Copy(Value::Constant(Constant::S(0)), dst));
+                                instructions.push(TACTILEInstruction::Label(end_label));
+
+                                dst
+                        }
+                        _ => {
+                                let v1 = emit_tacky(*src, instructions, max_identifier, max_label);
+                                let v2 = emit_tacky(*dst, instructions, max_identifier, max_label);
+                                let dst = Value::Var(Identifier(*max_identifier));
+                                *max_identifier += 1;
+                                instructions.push(TACTILEInstruction::Binary(binop, v1, v2, dst));
+                                dst
+                        }
+                },
+                AExpression::Factor(AFactor::Expr(expr)) => emit_tacky(*expr, instructions, max_identifier, max_label),
         }
 }
 
