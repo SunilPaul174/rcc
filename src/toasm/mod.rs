@@ -183,6 +183,17 @@ fn pseudo_pass(value: ASMInstruction, stack_max: &mut usize) -> ASMInstruction {
 
                         ASMInstruction::Mov(src, dst)
                 }
+                ASMInstruction::Cmp(src, dst) => {
+                        let src = pseudo_to_stack_operand(src, stack_max);
+                        let dst = pseudo_to_stack_operand(dst, stack_max);
+
+                        ASMInstruction::Cmp(src, dst)
+                }
+                ASMInstruction::SetCC(src, dst) => {
+                        let dst = pseudo_to_stack_operand(dst, stack_max);
+
+                        ASMInstruction::SetCC(src, dst)
+                }
                 ASMInstruction::Unary(unop, operand) => ASMInstruction::Unary(unop, pseudo_to_stack_operand(operand, stack_max)),
                 ASMInstruction::Binary(binop, src, dst) => {
                         ASMInstruction::Binary(binop, pseudo_to_stack_operand(src, stack_max), pseudo_to_stack_operand(dst, stack_max))

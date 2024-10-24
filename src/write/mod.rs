@@ -2,7 +2,7 @@ use crate::{
         parse::nodes::{AConstant, AIdentifier, Unop},
         tactile::Constant,
         toasm::{
-                nodes::{ASMBinary, ASMFunction, ASMInstruction, Operand, Register},
+                nodes::{ASMBinary, ASMFunction, ASMInstruction, CondCode, Operand, Register},
                 Compiled,
         },
         Program, State,
@@ -23,28 +23,38 @@ pub fn write(program: Program<Compiled>) -> Program<Written> {
 }
 
 pub static EAX: &[u8] = b"%eax";
+pub static AX: &[u8] = b"%eax";
+
 pub static R10D: &[u8] = b"%r10d";
+pub static R10B: &[u8] = b"%r10b";
+
 pub static DX: &[u8] = b"%edx";
+pub static DL: &[u8] = b"%dl";
+
 pub static R11D: &[u8] = b"%r11d";
+pub static R11B: &[u8] = b"%r11b";
 
 pub static PERCENT: u8 = b'%';
 pub static DOLLAR: u8 = b'$';
 
-pub static NOT: &[u8; 5] = b"\tnotl";
-pub static NEG: &[u8; 5] = b"\tnegl";
-pub static ADD: &[u8] = b"\taddl";
-pub static SUB: &[u8] = b"\tsubl";
-pub static MUL: &[u8] = b"\timull";
-pub static LEFTSHIFT: &[u8] = b"\tshll";
-pub static RIGHTSHIFT: &[u8] = b"\tshrl";
-pub static AND: &[u8] = b"\tandl";
-pub static OR: &[u8] = b"\torl";
-pub static XOR: &[u8] = b"\txorl";
+pub static NOTL: &[u8; 6] = b"\tnotl ";
+pub static NEGL: &[u8; 6] = b"\tnegl ";
+pub static ADDL: &[u8] = b"\taddl ";
+pub static SUBL: &[u8] = b"\tsubl ";
+pub static IMULL: &[u8] = b"\timull ";
+pub static LEFTSHIFTL: &[u8] = b"\tshll ";
+pub static RIGHTSHIFTL: &[u8] = b"\tshrl ";
+pub static ANDL: &[u8] = b"\tandl ";
+pub static ORL: &[u8] = b"\torl ";
+pub static XORL: &[u8] = b"\txorl ";
+pub static CMPL: &[u8] = b"\tcmpl ";
+pub static JMP: &[u8; 5] = b"\tjmp ";
 
-pub static DIV: &[u8; 6] = b"\tidivl";
+pub static DIVL: &[u8; 7] = b"\tidivl ";
 
 pub static CDQ: &[u8; 5] = b"\tcdq\n";
 
+pub static TEARDOWN: &[u8; 33] = b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n";
 fn the_real_stack(val: usize) -> i32 { -((val as i32) * 4) }
 
 fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
@@ -60,7 +70,7 @@ fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
         instructions.push(b':');
         instructions.push(b'\n');
 
-        let extend_from_operand = |value, instructions: &mut Vec<u8>| match value {
+        let extend_from_operand = |value, instructions: &mut Vec<u8>, setcc: bool| match value {
                 Operand::Imm(Constant::A(AConstant { start, len })) => {
                         instructions.push(DOLLAR);
                         instructions.extend_from_slice(&code[start..start + len]);
@@ -69,11 +79,15 @@ fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
                         instructions.push(DOLLAR);
                         instructions.extend_from_slice(&n.to_string().into_bytes());
                 }
-                Operand::Register(register) => instructions.extend(match register {
-                        Register::AX => EAX,
-                        Register::R10 => R10D,
-                        Register::DX => DX,
-                        Register::R11 => R11D,
+                Operand::Register(register) => instructions.extend(match (register, setcc) {
+                        (Register::AX, false) => EAX,
+                        (Register::R10, false) => R10D,
+                        (Register::DX, false) => DX,
+                        (Register::R11, false) => R11D,
+                        (Register::AX, true) => AX,
+                        (Register::DX, true) => DX,
+                        (Register::R10, true) => R10B,
+                        (Register::R11, true) => R11B,
                 }),
                 Operand::Stack(stack_value) => {
                         let val = the_real_stack(stack_value).to_string().into_bytes();
@@ -92,23 +106,23 @@ fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
         instructions
 }
 
-fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, extend_from_operand: impl Fn(Operand, &mut Vec<u8>)) {
+fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, extend_from_operand: impl Fn(Operand, &mut Vec<u8>, bool)) {
         match i {
                 ASMInstruction::Mov(src, dst) => {
                         instructions.extend_from_slice(b"\tmovl ");
-                        extend_from_operand(src, instructions);
+                        extend_from_operand(src, instructions, false);
                         instructions.push(b',');
-                        extend_from_operand(dst, instructions);
+                        extend_from_operand(dst, instructions, false);
                         instructions.push(b'\n');
                 }
                 ASMInstruction::Unary(unop, operand) => {
-                        instructions.extend_from_slice(match unop {
-                                Unop::Negate => NEG,
-                                Unop::Complement => NOT,
-                                Unop::Not => todo!(),
-                        });
-                        instructions.push(b' ');
-                        extend_from_operand(operand, instructions);
+                        let op = match unop {
+                                Unop::Negate => NEGL,
+                                Unop::Complement => NOTL,
+                                Unop::Not => panic!("not possible; removed in tactile->abstractasm stage."),
+                        };
+                        instructions.extend_from_slice(op);
+                        extend_from_operand(operand, instructions, false);
                         instructions.push(b'\n');
                 }
                 ASMInstruction::AllocateStack(n) => {
@@ -116,35 +130,73 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         instructions.extend_from_slice(&(-the_real_stack(n)).to_string().into_bytes());
                         instructions.extend(b", %rsp\n");
                 }
-                ASMInstruction::Ret => instructions.extend_from_slice(b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n"),
+                ASMInstruction::Ret => instructions.extend_from_slice(TEARDOWN),
                 ASMInstruction::Binary(asmbinary, src, dst) => {
                         instructions.extend(match asmbinary {
-                                ASMBinary::Add => ADD,
-                                ASMBinary::Subtract => SUB,
-                                ASMBinary::Multiply => MUL,
-                                ASMBinary::LeftShift => LEFTSHIFT,
-                                ASMBinary::RightShift => RIGHTSHIFT,
-                                ASMBinary::Or => OR,
-                                ASMBinary::XOr => XOR,
-                                ASMBinary::And => AND,
+                                ASMBinary::Add => ADDL,
+                                ASMBinary::Subtract => SUBL,
+                                ASMBinary::Multiply => IMULL,
+                                ASMBinary::LeftShift => LEFTSHIFTL,
+                                ASMBinary::RightShift => RIGHTSHIFTL,
+                                ASMBinary::Or => ORL,
+                                ASMBinary::XOr => XORL,
+                                ASMBinary::And => ANDL,
                         });
-                        instructions.push(b' ');
-                        extend_from_operand(src, instructions);
+                        extend_from_operand(src, instructions, false);
                         instructions.push(b',');
-                        extend_from_operand(dst, instructions);
+                        extend_from_operand(dst, instructions, false);
                         instructions.push(b'\n');
                 }
                 ASMInstruction::IDiv(operand) => {
-                        instructions.extend_from_slice(DIV);
-                        instructions.push(b' ');
-                        extend_from_operand(operand, instructions);
+                        instructions.extend_from_slice(DIVL);
+                        extend_from_operand(operand, instructions, false);
                         instructions.push(b'\n');
                 }
                 ASMInstruction::Cdq => instructions.extend_from_slice(CDQ),
-                ASMInstruction::Cmp(operand, operand1) => todo!(),
-                ASMInstruction::Jmp(label) => todo!(),
-                ASMInstruction::JmpCC(cond_code, label) => todo!(),
-                ASMInstruction::SetCC(cond_code, label) => todo!(),
-                ASMInstruction::Label(label) => todo!(),
+                ASMInstruction::Cmp(op1, op2) => {
+                        instructions.extend_from_slice(CMPL);
+                        extend_from_operand(op1, instructions, false);
+                        instructions.push(b',');
+                        extend_from_operand(op2, instructions, false);
+                        instructions.push(b'\n');
+                }
+                ASMInstruction::Jmp(label) => {
+                        instructions.extend_from_slice(JMP);
+                        instructions.extend_from_slice(&[b'.', b'L']);
+                        instructions.extend_from_slice(&label.0.to_string().into_bytes());
+                }
+                ASMInstruction::JmpCC(cond_code, label) => {
+                        instructions.extend_from_slice(b"\tj");
+                        instructions.extend_from_slice(match cond_code {
+                                CondCode::E => b"e ",
+                                CondCode::NE => b"ne ",
+                                CondCode::G => b"g ",
+                                CondCode::GE => b"ge ",
+                                CondCode::L => b"l ",
+                                CondCode::LE => b"le ",
+                        });
+                        instructions.extend_from_slice(&[b'.', b'L']);
+                        instructions.extend_from_slice(&label.0.to_string().into_bytes());
+                        instructions.push(b'\n');
+                }
+                ASMInstruction::SetCC(cond_code, op1) => {
+                        instructions.extend_from_slice(b"\tset");
+                        instructions.extend_from_slice(match cond_code {
+                                CondCode::E => b"e ",
+                                CondCode::NE => b"ne ",
+                                CondCode::G => b"g ",
+                                CondCode::GE => b"ge ",
+                                CondCode::L => b"l ",
+                                CondCode::LE => b"le ",
+                        });
+                        // instructions.extend_from_slice(&[b'.', b'L']);
+                        extend_from_operand(op1, instructions, true);
+                        instructions.push(b'\n');
+                }
+                ASMInstruction::Label(label) => {
+                        instructions.extend_from_slice(b"\n.L");
+                        instructions.extend_from_slice(&label.0.to_string().into_bytes());
+                        instructions.extend_from_slice(b":\n");
+                }
         }
 }
