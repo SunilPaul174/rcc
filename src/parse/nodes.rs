@@ -6,7 +6,7 @@ pub struct AProgram {
 #[derive(Debug)]
 pub struct AFunction {
         pub identifier: AIdentifier,
-        pub statement_body: AStatement,
+        pub function_body: Vec<BlockItem>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -14,24 +14,36 @@ pub struct AIdentifier {
         pub start: usize,
         pub len: usize,
 }
-#[derive(Debug)]
-pub struct AReturnStatement {
-        pub statement: AStatement,
+#[derive(Debug, Clone)]
+pub enum BlockItem {
+        D(Declaration),
+        S(AStatement),
 }
-#[derive(Debug)]
-pub struct AStatement {
-        pub expr: AExpression,
+#[derive(Debug, Clone)]
+pub struct Declaration {
+        pub id: AIdentifier,
+        pub init: Option<AExpression>,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub enum AStatement {
+        Return(AExpression),
+        Expr(AExpression),
+        Nul,
+}
+#[derive(Debug, Clone)]
 pub enum AFactor {
         Constant(AConstant),
         Unop(Unop, Box<AFactor>),
         Expr(Box<AExpression>),
+        Id(AIdentifier),
 }
-#[derive(Debug)]
+
+#[derive(Debug, Clone)]
 pub enum AExpression {
-        Factor(AFactor),
+        F(AFactor),
         BinOp(BinOp, Box<AExpression>, Box<AExpression>),
+        Var(AIdentifier),
+        Assignment(Box<AExpression>, Box<AExpression>),
 }
 #[derive(Debug, Clone, Copy)]
 pub enum Unop {
@@ -65,4 +77,5 @@ pub enum BinOp {
         MoreThan,
         MoreThanOrEqual,
         BitwiseXOr,
+        Equal,
 }

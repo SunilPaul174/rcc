@@ -1,8 +1,14 @@
 pub static INT: &[u8; 3] = b"int";
+// pub static INT: u32 = 2780299380;
 pub static VOID: &[u8; 3] = b"vod";
+// pub static VOID: u32 = 3652976740;
 pub static RETURN: &[u8; 3] = b"ren";
+// pub static RETURN: u32 = 3381919854;
 
-use std::collections::HashMap;
+use std::{
+        collections::HashMap,
+        hash::{BuildHasher, BuildHasherDefault, Hasher},
+};
 
 use thiserror::Error;
 use tokentype::{Token, TokenType};
@@ -24,8 +30,45 @@ pub enum Error {
         OutOfTokens(usize, Vec<Token>),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct KeywordHash(pub u32);
+
+impl Hasher for KeywordHash {
+        fn finish(&self) -> u64 { self.0 as u64 }
+
+        fn write(&mut self, bytes: &[u8]) {
+                let len = bytes.len();
+                let mut temp = 0;
+                // if len == 1 {
+                //         temp += (bytes[0] as u32) << 26;
+                //         temp += temp >> 8;
+                //         temp += bytes[0] as u32;
+                // } else {
+                temp += (bytes[0] as u32) << 26;
+                temp += (bytes[1] as u32) << 18;
+                temp += bytes[len - 1] as u32;
+                // }
+                self.0 = temp;
+        }
+}
+
+impl BuildHasher for KeywordHash {
+        type Hasher = Self;
+
+        fn build_hasher(&self) -> Self::Hasher { *self }
+}
+
+impl Default for KeywordHash {
+        fn default() -> Self { KeywordHash(0) }
+}
+type KeywordHasher = BuildHasherDefault<KeywordHash>;
+
 pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
-        let keyword_map = HashMap::from([(INT, TokenType::Int), (VOID, TokenType::Void), (RETURN, TokenType::Return)]);
+        let mut keyword_map: HashMap<&[u8; 3], TokenType, KeywordHasher> = HashMap::with_capacity_and_hasher(3, Default::default());
+        // let keyword_map = HashMap::from([(INT, TokenType::Int), (VOID, TokenType::Void), (RETURN, TokenType::Return)]);
+        keyword_map.entry(INT).or_insert(TokenType::Int);
+        keyword_map.entry(VOID).or_insert(TokenType::Void);
+        keyword_map.entry(RETURN).or_insert(TokenType::Return);
 
         let mut left = 0;
         let tot_len = program.state.code.len();
@@ -52,7 +95,8 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
         })
 }
 
-pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 3], TokenType, S>) -> Option<Token> {
+pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 3], TokenType, S>) -> Option<Token> {
+        // pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 3], TokenType, S>) -> Option<Token> {
         if let Some(token_type) = match code[start] {
                 b'(' => Some(TokenType::OpenParen),
                 b')' => Some(TokenType::CloseParen),
@@ -75,7 +119,7 @@ pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, k
                 _ => None,
         } {
                 let temp = code.get(start + 1);
-                if temp == None {
+                if temp.is_none() {
                         return Some(Token { token_type, len: 1, start });
                 }
 
@@ -121,16 +165,16 @@ pub fn get_largest_match<S: std::hash::BuildHasher>(code: &[u8], start: usize, k
         }
 
         let curr_slice = &code[start..start + len];
-        let first = *curr_slice.get(0)?;
-        let second;
-        if let Some(&res) = curr_slice.get(1) {
-                second = res;
-        } else {
-                second = first;
-        }
-        let arr = &[first, second, *curr_slice.last()?];
 
-        if let Some(&token_type) = keyword_map.get(&arr) {
+        if len == 1 {
+                return Some(Token {
+                        token_type: TokenType::Identifier,
+                        len: 1,
+                        start,
+                });
+        }
+
+        if let Some(&token_type) = keyword_map.get(&[curr_slice[0], curr_slice[1], curr_slice[len - 1]]) {
                 return Some(Token { token_type, len, start });
         }
 

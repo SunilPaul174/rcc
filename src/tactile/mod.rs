@@ -1,6 +1,6 @@
 use crate::{
         parse::{
-                nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, BinOp, Unop},
+                nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, BinOp, Unop},
                 Parsed,
         },
         Program, State,
@@ -60,7 +60,7 @@ impl From<AFunction> for TACTILEFunction {
                 let mut global_max_identifier = 1;
                 let mut global_max_label = 1;
 
-                let expr = value.statement_body.expr;
+                let AStatement::Return(expr) = todo!() else { todo!() };
 
                 let val = emit_tacky(expr, &mut instructions, &mut global_max_identifier, &mut global_max_label);
                 instructions.push(TACTILEInstruction::Return(val));
@@ -74,9 +74,9 @@ impl From<AFunction> for TACTILEFunction {
 
 fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, max_identifier: &mut usize, max_label: &mut usize) -> Value {
         match value {
-                AExpression::Factor(AFactor::Constant(n)) => Value::Constant(Constant::A(n)),
-                AExpression::Factor(AFactor::Unop(unop, afactor)) => {
-                        let src = emit_tacky(AExpression::Factor(*afactor), instructions, max_identifier, max_label);
+                AExpression::F(AFactor::Constant(n)) => Value::Constant(Constant::A(n)),
+                AExpression::F(AFactor::Unop(unop, afactor)) => {
+                        let src = emit_tacky(AExpression::F(*afactor), instructions, max_identifier, max_label);
                         let dst = Value::Var(Identifier(*max_identifier));
                         *max_identifier += 1;
                         instructions.push(TACTILEInstruction::Unary(unop, src, dst));
@@ -136,7 +136,10 @@ fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, ma
                                 dst
                         }
                 },
-                AExpression::Factor(AFactor::Expr(expr)) => emit_tacky(*expr, instructions, max_identifier, max_label),
+                AExpression::F(AFactor::Expr(expr)) => emit_tacky(*expr, instructions, max_identifier, max_label),
+                AExpression::Var(aidentifier) => todo!(),
+                AExpression::Assignment(aexpression, aexpression1) => todo!(),
+                AExpression::F(AFactor::Id(id)) => todo!(),
         }
 }
 
