@@ -3,6 +3,7 @@ use crate::{
                 nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, BinOp, Unop},
                 Parsed,
         },
+        semanalysis::SemanticallyAnalyzed,
         Program, State,
 };
 
@@ -149,7 +150,7 @@ fn tactile_program(program: AProgram) -> TACTILEProgram {
         }
 }
 
-pub fn TACTILE(program: Program<Parsed>) -> Program<TACTILE> {
+pub fn TACTILE(program: Program<SemanticallyAnalyzed>) -> Program<TACTILE> {
         Program {
                 operation: program.operation,
                 state: TACTILE {

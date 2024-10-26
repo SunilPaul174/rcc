@@ -7,6 +7,7 @@ use rcc::{
         tactile::TACTILE,
         toasm::asm,
         write::write,
+        Program,
 };
 
 fn main() {
@@ -28,6 +29,7 @@ fn main() {
         if res.operation == Operation::ParseToCTree {
                 return;
         }
+        let res = Program::try_from(res).unwrap();
         let res = TACTILE(res);
         if res.operation == Operation::ParseToTACTILETree {
                 return;

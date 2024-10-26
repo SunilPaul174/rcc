@@ -38,16 +38,10 @@ impl Hasher for KeywordHash {
 
         fn write(&mut self, bytes: &[u8]) {
                 let len = bytes.len();
-                let mut temp = 0;
-                // if len == 1 {
-                //         temp += (bytes[0] as u32) << 26;
-                //         temp += temp >> 8;
-                //         temp += bytes[0] as u32;
-                // } else {
+                let mut temp: u32 = 0;
                 temp += (bytes[0] as u32) << 26;
                 temp += (bytes[1] as u32) << 18;
                 temp += bytes[len - 1] as u32;
-                // }
                 self.0 = temp;
         }
 }
@@ -64,7 +58,7 @@ impl Default for KeywordHash {
 type KeywordHasher = BuildHasherDefault<KeywordHash>;
 
 pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
-        let mut keyword_map: HashMap<&[u8; 3], TokenType, KeywordHasher> = HashMap::with_capacity_and_hasher(3, Default::default());
+        let mut keyword_map: HashMap<&[u8], TokenType, KeywordHasher> = HashMap::with_capacity_and_hasher(3, Default::default());
         // let keyword_map = HashMap::from([(INT, TokenType::Int), (VOID, TokenType::Void), (RETURN, TokenType::Return)]);
         keyword_map.entry(INT).or_insert(TokenType::Int);
         keyword_map.entry(VOID).or_insert(TokenType::Void);
@@ -95,7 +89,7 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
         })
 }
 
-pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 3], TokenType, S>) -> Option<Token> {
+pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8], TokenType, S>) -> Option<Token> {
         // pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 3], TokenType, S>) -> Option<Token> {
         if let Some(token_type) = match code[start] {
                 b'(' => Some(TokenType::OpenParen),
@@ -166,7 +160,7 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
 
         let curr_slice = &code[start..start + len];
 
-        if len == 1 {
+        if len <= 1 {
                 return Some(Token {
                         token_type: TokenType::Identifier,
                         len: 1,
@@ -174,7 +168,7 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
                 });
         }
 
-        if let Some(&token_type) = keyword_map.get(&[curr_slice[0], curr_slice[1], curr_slice[len - 1]]) {
+        if let Some(&token_type) = keyword_map.get(curr_slice) {
                 return Some(Token { token_type, len, start });
         }
 
