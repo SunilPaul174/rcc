@@ -1,8 +1,8 @@
-pub static INT: &[u8; 3] = b"int";
+pub static INT: &[u8] = b"int";
 // pub static INT: u32 = 2780299380;
-pub static VOID: &[u8; 3] = b"vod";
+pub static VOID: &[u8] = b"void";
 // pub static VOID: u32 = 3652976740;
-pub static RETURN: &[u8; 3] = b"ren";
+pub static RETURN: &[u8] = b"return";
 // pub static RETURN: u32 = 3381919854;
 
 use std::{

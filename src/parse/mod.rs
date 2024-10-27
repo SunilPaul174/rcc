@@ -26,6 +26,8 @@ pub enum Error {
         InvalidTokenAt(Token, TokenType),
         #[error("Too many tokens: You have some junk after the program")]
         TooManyTokens,
+        #[error("Invalid token {0} to be a factor.")]
+        InvalidFactorAt(Token),
 }
 
 // <program> ::= <function>
@@ -78,19 +80,15 @@ fn parse_declaration(tokens: &mut [Token], ptr: &mut usize) -> Result<Declaratio
 
         let (start, len) = is_token(tokens, TokenType::Identifier, ptr)?;
         let identifier = AIdentifier { start, len };
+        let mut init = None;
 
         if tokens[*ptr].token_type == TokenType::Equal {
                 *ptr += 1;
-                let expr = parse_expression(tokens, ptr, 0)?;
-                is_token(tokens, TokenType::SemiColon, ptr)?;
-                return Ok(Declaration {
-                        id: identifier,
-                        init: Some(expr),
-                });
+                init = Some(parse_expression(tokens, ptr, 0)?);
         }
 
         is_token(tokens, TokenType::SemiColon, ptr)?;
-        Ok(Declaration { id: identifier, init: None })
+        Ok(Declaration { id: identifier, init })
 }
 
 // <statement> ::= "return" <exp> ";" | <exp> ; | ;
@@ -113,16 +111,17 @@ fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_prec: usize) -> R
         let mut left = AExpression::F(parse_factor(tokens, ptr)?);
 
         while let Some(operator) = parse_binary_operator(tokens, ptr) {
-                if precedence(operator) < min_prec {
+                let operator_precedence = precedence(operator);
+                if operator_precedence < min_prec {
                         *ptr -= 1;
-                        return Ok(left);
+                        break;
                 }
 
-                if is_token(tokens, TokenType::Equal, ptr).is_ok() {
-                        let right = parse_expression(tokens, ptr, precedence(operator))?;
+                if operator == BinOp::Equal {
+                        let right = parse_expression(tokens, ptr, operator_precedence)?;
                         left = AExpression::Assignment(Box::new(left), Box::new(right));
                 } else {
-                        let right = parse_expression(tokens, ptr, precedence(operator) + 1)?;
+                        let right = parse_expression(tokens, ptr, operator_precedence + 1)?;
                         left = AExpression::BinOp(operator, Box::new(left), Box::new(right));
                 }
         }
@@ -130,7 +129,7 @@ fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_prec: usize) -> R
         Ok(left)
 }
 
-// <factor> ::= <int> | <unop> <factor> | "(" <exp> ")" | <identifier>
+// <factor> ::= <identifier> | <int> | "(" <exp> ")" | <unop> <factor>
 fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, Error> {
         if let Ok(identifier) = parse_identifier(tokens, ptr) {
                 return Ok(AFactor::Id(identifier));
@@ -157,7 +156,7 @@ fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, Error>
                 *ptr -= 1;
         }
 
-        Err(Error::InvalidTokenAt(tokens[*ptr], TokenType::Int))
+        Err(Error::InvalidFactorAt(tokens[*ptr]))
 }
 
 // <unop> ::= "-" | "~" | "!"

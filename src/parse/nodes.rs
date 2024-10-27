@@ -57,7 +57,7 @@ pub struct AConstant {
         pub start: usize,
         pub len: usize,
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinOp {
         Add,
         Subtract,
