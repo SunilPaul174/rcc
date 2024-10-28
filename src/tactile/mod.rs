@@ -1,6 +1,6 @@
 use crate::{
         parse::{
-                nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, BinOp, Unop},
+                nodes::{AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, BinOp, Unop},
                 Parsed,
         },
         semanalysis::SemanticallyAnalyzed,
@@ -53,24 +53,6 @@ pub struct TACTILEFunction {
 #[derive(Debug, Clone)]
 pub struct TACTILEProgram {
         pub function: TACTILEFunction,
-}
-
-impl From<AFunction> for TACTILEFunction {
-        fn from(value: AFunction) -> Self {
-                let mut instructions = vec![];
-                let mut global_max_identifier = 1;
-                let mut global_max_label = 1;
-
-                let AStatement::Return(expr) = todo!() else { todo!() };
-
-                let val = emit_tacky(expr, &mut instructions, &mut global_max_identifier, &mut global_max_label);
-                instructions.push(TACTILEInstruction::Return(val));
-
-                TACTILEFunction {
-                        identifier: value.identifier,
-                        instructions,
-                }
-        }
 }
 
 fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, max_identifier: &mut usize, max_label: &mut usize) -> Value {
@@ -138,7 +120,6 @@ fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, ma
                         }
                 },
                 AExpression::F(AFactor::Expr(expr)) => emit_tacky(*expr, instructions, max_identifier, max_label),
-                AExpression::Var(aidentifier) => todo!(),
                 AExpression::Assignment(aexpression, aexpression1) => todo!(),
                 AExpression::F(AFactor::Id(id)) => todo!(),
         }
@@ -146,7 +127,22 @@ fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, ma
 
 fn tactile_program(program: AProgram) -> TACTILEProgram {
         TACTILEProgram {
-                function: TACTILEFunction::from(program.functions),
+                function: {
+                        let value = program.functions;
+                        let mut instructions = vec![];
+                        let mut global_max_label = 1;
+                        let mut global_max_identifier = 1;
+
+                        let AStatement::Return(expr) = todo!() else { todo!() };
+
+                        let val = emit_tacky(expr, &mut instructions, &mut global_max_identifier, &mut global_max_label);
+                        instructions.push(TACTILEInstruction::Return(val));
+
+                        TACTILEFunction {
+                                identifier: value.identifier,
+                                instructions,
+                        }
+                },
         }
 }
 

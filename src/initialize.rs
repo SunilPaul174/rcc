@@ -14,6 +14,7 @@ impl State for Initialized {}
 pub enum Operation {
         Lex,
         ParseToCTree,
+        Validate,
         ParseToASMTree,
         ParseToTACTILETree,
         GenerateASM,
@@ -56,6 +57,7 @@ fn get_request() -> Result<(Operation, PathBuf), Error> {
                 "--lex" => Ok((Operation::Lex, file)),
                 "--parse" => Ok((Operation::ParseToCTree, file)),
                 "--tacky" | "--tactile" => Ok((Operation::ParseToTACTILETree, file)),
+                "--validate" => Ok((Operation::Validate, file)),
                 "--codegen" => Ok((Operation::ParseToASMTree, file)),
                 "-S" => Ok((Operation::GenerateASM, file)),
                 "-C" => Ok((Operation::Compile, file)),
