@@ -107,12 +107,13 @@ fn parse_statement(tokens: &mut [Token], ptr: &mut usize) -> Result<AStatement, 
 }
 
 // <exp> ::= <factor> | <exp> <binop> <exp>
-fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_prec: usize) -> Result<AExpression, Error> {
+fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
         let mut left = AExpression::F(parse_factor(tokens, ptr)?);
 
         while let Some(operator) = parse_binary_operator(tokens, ptr) {
                 let operator_precedence = precedence(operator);
-                if operator_precedence < min_prec {
+
+                if operator_precedence < min_precedence {
                         *ptr -= 1;
                         break;
                 }
@@ -139,9 +140,9 @@ fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, Error>
                 return Ok(AFactor::Constant(constant));
         }
 
-        if let Ok(_) = is_token(tokens, TokenType::OpenParen, ptr) {
+        if is_token(tokens, TokenType::OpenParen, ptr).is_ok() {
                 if let Ok(expr) = parse_expression(tokens, ptr, 0) {
-                        if let Ok(_) = is_token(tokens, TokenType::CloseParen, ptr) {
+                        if is_token(tokens, TokenType::CloseParen, ptr).is_ok() {
                                 return Ok(AFactor::Expr(Box::new(expr)));
                         }
                         *ptr -= 1;

@@ -44,9 +44,7 @@ impl From<TACTILEFunction> for ASMFunction {
                 temp_instructions.push(ASMInstruction::AllocateStack(0));
 
                 let from_tactile = |&value| match value {
-                        TACTILEInstruction::Return(val) => {
-                                temp_instructions.extend([ASMInstruction::Mov(val_to_op(val), Operand::Register(Register::AX)), ASMInstruction::Ret])
-                        }
+                        TACTILEInstruction::Return(val) => temp_instructions.extend([ASMInstruction::Mov(val_to_op(val), Operand::Register(Register::AX)), ASMInstruction::Ret]),
                         TACTILEInstruction::Unary(unop, src, dst) => {
                                 match unop {
                                         Unop::Not => {
@@ -195,9 +193,7 @@ fn pseudo_pass(value: ASMInstruction, stack_max: &mut usize) -> ASMInstruction {
                         ASMInstruction::SetCC(src, dst)
                 }
                 ASMInstruction::Unary(unop, operand) => ASMInstruction::Unary(unop, pseudo_to_stack_operand(operand, stack_max)),
-                ASMInstruction::Binary(binop, src, dst) => {
-                        ASMInstruction::Binary(binop, pseudo_to_stack_operand(src, stack_max), pseudo_to_stack_operand(dst, stack_max))
-                }
+                ASMInstruction::Binary(binop, src, dst) => ASMInstruction::Binary(binop, pseudo_to_stack_operand(src, stack_max), pseudo_to_stack_operand(dst, stack_max)),
                 ASMInstruction::IDiv(src) => ASMInstruction::IDiv(pseudo_to_stack_operand(src, stack_max)),
                 _ => value,
         }

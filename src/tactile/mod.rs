@@ -1,8 +1,7 @@
+use std::{collections::HashMap, hash::BuildHasher};
+
 use crate::{
-        parse::{
-                nodes::{AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, BinOp, Unop},
-                Parsed,
-        },
+        parse::nodes::{AConstant, AExpression, AFactor, AIdentifier, AProgram, BinOp, BlockItem, Declaration, Unop},
         semanalysis::SemanticallyAnalyzed,
         Program, State,
 };
@@ -55,11 +54,19 @@ pub struct TACTILEProgram {
         pub function: TACTILEFunction,
 }
 
-fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, max_identifier: &mut usize, max_label: &mut usize) -> Value {
+fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
+        code: &'a [u8],
+        value: AExpression,
+        instructions: &mut Vec<TACTILEInstruction>,
+        max_identifier: &mut usize,
+        max_label: &mut usize,
+        named_variable_map: &mut HashMap<(&'b [u8], usize), Identifier, S>,
+        scope: usize,
+) -> Value {
         match value {
                 AExpression::F(AFactor::Constant(n)) => Value::Constant(Constant::A(n)),
                 AExpression::F(AFactor::Unop(unop, afactor)) => {
-                        let src = emit_tacky(AExpression::F(*afactor), instructions, max_identifier, max_label);
+                        let src = emit_tactile_expr(code, AExpression::F(*afactor), instructions, max_identifier, max_label, named_variable_map, scope);
                         let dst = Value::Var(Identifier(*max_identifier));
                         *max_identifier += 1;
                         instructions.push(TACTILEInstruction::Unary(unop, src, dst));
@@ -72,9 +79,9 @@ fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, ma
                                 let end_label = Label(*max_label);
                                 *max_label += 1;
 
-                                let v1 = emit_tacky(*src, instructions, max_identifier, max_label);
+                                let v1 = emit_tactile_expr(code, *src, instructions, max_identifier, max_label, named_variable_map, scope);
                                 instructions.push(TACTILEInstruction::JumpIfZero(v1, false_label));
-                                let v2 = emit_tacky(*dst, instructions, max_identifier, max_label);
+                                let v2 = emit_tactile_expr(code, *dst, instructions, max_identifier, max_label, named_variable_map, scope);
                                 instructions.push(TACTILEInstruction::JumpIfZero(v2, false_label));
 
                                 let dst = Value::Var(Identifier(*max_identifier));
@@ -94,9 +101,9 @@ fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, ma
                                 let end_label = Label(*max_label);
                                 *max_label += 1;
 
-                                let v1 = emit_tacky(*src, instructions, max_identifier, max_label);
+                                let v1 = emit_tactile_expr(code, *src, instructions, max_identifier, max_label, named_variable_map, scope);
                                 instructions.push(TACTILEInstruction::JumpIfNotZero(v1, false_label));
-                                let v2 = emit_tacky(*dst, instructions, max_identifier, max_label);
+                                let v2 = emit_tactile_expr(code, *dst, instructions, max_identifier, max_label, named_variable_map, scope);
                                 instructions.push(TACTILEInstruction::JumpIfNotZero(v2, false_label));
 
                                 let dst = Value::Var(Identifier(*max_identifier));
@@ -111,47 +118,84 @@ fn emit_tacky(value: AExpression, instructions: &mut Vec<TACTILEInstruction>, ma
                                 dst
                         }
                         _ => {
-                                let v1 = emit_tacky(*src, instructions, max_identifier, max_label);
-                                let v2 = emit_tacky(*dst, instructions, max_identifier, max_label);
+                                let v1 = emit_tactile_expr(code, *src, instructions, max_identifier, max_label, named_variable_map, scope);
+                                let v2 = emit_tactile_expr(code, *dst, instructions, max_identifier, max_label, named_variable_map, scope);
                                 let dst = Value::Var(Identifier(*max_identifier));
                                 *max_identifier += 1;
                                 instructions.push(TACTILEInstruction::Binary(binop, v1, v2, dst));
                                 dst
                         }
                 },
-                AExpression::F(AFactor::Expr(expr)) => emit_tacky(*expr, instructions, max_identifier, max_label),
-                AExpression::Assignment(aexpression, aexpression1) => todo!(),
-                AExpression::F(AFactor::Id(id)) => todo!(),
+                AExpression::F(AFactor::Expr(expr)) => emit_tactile_expr(code, *expr, instructions, max_identifier, max_label, named_variable_map, scope),
+                AExpression::Assignment(lval, rval) => {
+                        let left = emit_tactile_expr(code, *lval, instructions, max_identifier, max_label, named_variable_map, scope);
+                        let right = emit_tactile_expr(code, *rval, instructions, max_identifier, max_label, named_variable_map, scope);
+                        instructions.push(TACTILEInstruction::Copy(right, left));
+                        left
+                }
+                AExpression::F(AFactor::Id(id)) => {
+                        let AIdentifier { start, len } = id;
+                        let name = &code[start..start + len];
+                        let entry = (name, scope);
+
+                        let entered = named_variable_map.entry(entry).or_insert({
+                                let id = Identifier(*max_identifier);
+                                *max_identifier += 1;
+                                id
+                        });
+
+                        Value::Var(*entered)
+                }
         }
 }
 
-fn tactile_program(program: AProgram) -> TACTILEProgram {
-        TACTILEProgram {
-                function: {
-                        let value = program.functions;
-                        let mut instructions = vec![];
-                        let mut global_max_label = 1;
-                        let mut global_max_identifier = 1;
+fn tactile_program(program: AProgram, code: &[u8]) -> TACTILEProgram {
+        let value = program.functions;
+        let mut instructions = vec![];
+        let mut global_max_label = 1;
+        let mut global_max_identifier = 1;
+        let mut named_variable_map = HashMap::new();
+        let scope = 0;
 
-                        let AStatement::Return(expr) = todo!() else { todo!() };
+        // instructions.push(TACTILEInstruction::Return(val));
+        let mut emit_initializer = |declaration: Declaration| {
+                if let Some(init) = declaration.init {
+                        emit_tactile_expr(
+                                code,
+                                init,
+                                &mut instructions,
+                                &mut global_max_identifier,
+                                &mut global_max_label,
+                                &mut named_variable_map,
+                                scope,
+                        );
+                }
+        };
 
-                        let val = emit_tacky(expr, &mut instructions, &mut global_max_identifier, &mut global_max_label);
-                        instructions.push(TACTILEInstruction::Return(val));
-
-                        TACTILEFunction {
-                                identifier: value.identifier,
-                                instructions,
+        for i in value.function_body {
+                match i {
+                        BlockItem::D(declaration) => {
+                                emit_initializer(declaration);
                         }
+                        BlockItem::S(astatement) => todo!(),
+                }
+        }
+
+        TACTILEProgram {
+                function: TACTILEFunction {
+                        identifier: value.identifier,
+                        instructions,
                 },
         }
 }
 
 pub fn TACTILE(program: Program<SemanticallyAnalyzed>) -> Program<TACTILE> {
+        let code = program.state.code;
         Program {
                 operation: program.operation,
                 state: TACTILE {
-                        code: program.state.code,
-                        program: tactile_program(program.state.program),
+                        program: tactile_program(program.state.program, &code[..]),
+                        code,
                 },
         }
 }

@@ -55,6 +55,8 @@ pub static DIVL: &[u8; 7] = b"\tidivl ";
 pub static CDQ: &[u8; 5] = b"\tcdq\n";
 
 pub static TEARDOWN: &[u8; 33] = b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n";
+
+// we hold the stack in the tactile stage as the number of variables on the stack. However, the all the variables are QWords, so you need to subtract from top of stack
 fn the_real_stack(val: usize) -> i32 { -((val as i32) * 4) }
 
 fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {

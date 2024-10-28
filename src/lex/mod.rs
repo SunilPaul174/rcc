@@ -1,10 +1,3 @@
-pub static INT: &[u8] = b"int";
-// pub static INT: u32 = 2780299380;
-pub static VOID: &[u8] = b"void";
-// pub static VOID: u32 = 3652976740;
-pub static RETURN: &[u8] = b"return";
-// pub static RETURN: u32 = 3381919854;
-
 use std::{
         collections::HashMap,
         hash::{BuildHasher, BuildHasherDefault, Hasher},
@@ -29,6 +22,10 @@ pub enum Error {
         #[error("There are no more valid tokens after {0}, {1:?}")]
         OutOfTokens(usize, Vec<Token>),
 }
+
+pub static INT: &[u8] = b"int";
+pub static VOID: &[u8] = b"void";
+pub static RETURN: &[u8] = b"return";
 
 #[derive(Debug, Clone, Copy)]
 pub struct KeywordHash(pub u32);
@@ -59,7 +56,6 @@ type KeywordHasher = BuildHasherDefault<KeywordHash>;
 
 pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
         let mut keyword_map: HashMap<&[u8], TokenType, KeywordHasher> = HashMap::with_capacity_and_hasher(3, Default::default());
-        // let keyword_map = HashMap::from([(INT, TokenType::Int), (VOID, TokenType::Void), (RETURN, TokenType::Return)]);
         keyword_map.entry(INT).or_insert(TokenType::Int);
         keyword_map.entry(VOID).or_insert(TokenType::Void);
         keyword_map.entry(RETURN).or_insert(TokenType::Return);
@@ -90,7 +86,6 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
 }
 
 pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8], TokenType, S>) -> Option<Token> {
-        // pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8; 3], TokenType, S>) -> Option<Token> {
         if let Some(token_type) = match code[start] {
                 b'(' => Some(TokenType::OpenParen),
                 b')' => Some(TokenType::CloseParen),
@@ -138,14 +133,17 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
         if !(code[start].is_ascii_alphabetic() | code[start].is_ascii_digit() | (code[start] == b'_')) {
                 return None;
         }
+
         let mut len = 0;
 
         for &i in &code[start..] {
-                if !(i.is_ascii_alphabetic() | i.is_ascii_digit() | (i == b'_')) {
-                        break;
-                }
-                if is_constant && (!i.is_ascii_digit()) {
+                let is_digit = i.is_ascii_digit();
+                if is_constant && (!is_digit) {
                         return None;
+                }
+                let is_alpha = i.is_ascii_alphabetic();
+                if !(is_alpha | is_constant | (i == b'_')) {
+                        break;
                 }
                 len += 1;
         }
@@ -160,7 +158,7 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
 
         let curr_slice = &code[start..start + len];
 
-        if len <= 1 {
+        if (len <= 1) | (len > 8) {
                 return Some(Token {
                         token_type: TokenType::Identifier,
                         len: 1,
