@@ -130,7 +130,7 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
         }
 
         let is_constant = code[start].is_ascii_digit();
-        if !(code[start].is_ascii_alphabetic() | code[start].is_ascii_digit() | (code[start] == b'_')) {
+        if !((code[start] == b'_') | code[start].is_ascii_alphabetic() | is_constant) {
                 return None;
         }
 
@@ -138,11 +138,14 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
 
         for &i in &code[start..] {
                 let is_digit = i.is_ascii_digit();
-                if is_constant && (!is_digit) {
-                        return None;
+                if is_constant && !is_digit {
+                        if len == 0 {
+                                return None;
+                        }
+                        break;
                 }
                 let is_alpha = i.is_ascii_alphabetic();
-                if !(is_alpha | is_constant | (i == b'_')) {
+                if !((i == b'_') | is_alpha | is_digit) {
                         break;
                 }
                 len += 1;
@@ -156,15 +159,15 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
                 });
         }
 
-        let curr_slice = &code[start..start + len];
-
         if (len <= 1) | (len > 8) {
                 return Some(Token {
                         token_type: TokenType::Identifier,
-                        len: 1,
+                        len,
                         start,
                 });
         }
+
+        let curr_slice = &code[start..start + len];
 
         if let Some(&token_type) = keyword_map.get(curr_slice) {
                 return Some(Token { token_type, len, start });

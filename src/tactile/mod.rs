@@ -1,7 +1,7 @@
 use std::{collections::HashMap, hash::BuildHasher};
 
 use crate::{
-        parse::nodes::{AConstant, AExpression, AFactor, AIdentifier, AProgram, BinOp, BlockItem, Declaration, Unop},
+        parse::nodes::{AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, BinOp, BlockItem, Declaration, Unop},
         semanalysis::SemanticallyAnalyzed,
         Program, State,
 };
@@ -80,9 +80,9 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
                                 *max_label += 1;
 
                                 let v1 = emit_tactile_expr(code, *src, instructions, max_identifier, max_label, named_variable_map, scope);
-                                instructions.push(TACTILEInstruction::JumpIfZero(v1, false_label));
+                                instructions.push(TACTILEInstruction::JumpIfNotZero(v1, false_label));
                                 let v2 = emit_tactile_expr(code, *dst, instructions, max_identifier, max_label, named_variable_map, scope);
-                                instructions.push(TACTILEInstruction::JumpIfZero(v2, false_label));
+                                instructions.push(TACTILEInstruction::JumpIfNotZero(v2, false_label));
 
                                 let dst = Value::Var(Identifier(*max_identifier));
                                 *max_identifier += 1;
@@ -102,9 +102,9 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
                                 *max_label += 1;
 
                                 let v1 = emit_tactile_expr(code, *src, instructions, max_identifier, max_label, named_variable_map, scope);
-                                instructions.push(TACTILEInstruction::JumpIfNotZero(v1, false_label));
+                                instructions.push(TACTILEInstruction::JumpIfZero(v1, false_label));
                                 let v2 = emit_tactile_expr(code, *dst, instructions, max_identifier, max_label, named_variable_map, scope);
-                                instructions.push(TACTILEInstruction::JumpIfNotZero(v2, false_label));
+                                instructions.push(TACTILEInstruction::JumpIfZero(v2, false_label));
 
                                 let dst = Value::Var(Identifier(*max_identifier));
                                 *max_identifier += 1;
@@ -157,29 +157,61 @@ fn tactile_program(program: AProgram, code: &[u8]) -> TACTILEProgram {
         let mut named_variable_map = HashMap::new();
         let scope = 0;
 
-        // instructions.push(TACTILEInstruction::Return(val));
-        let mut emit_initializer = |declaration: Declaration| {
-                if let Some(init) = declaration.init {
-                        emit_tactile_expr(
-                                code,
-                                init,
-                                &mut instructions,
-                                &mut global_max_identifier,
-                                &mut global_max_label,
-                                &mut named_variable_map,
-                                scope,
-                        );
-                }
-        };
-
         for i in value.function_body {
                 match i {
                         BlockItem::D(declaration) => {
-                                emit_initializer(declaration);
+                                if let Some(init) = declaration.init {
+                                        let var = emit_tactile_expr(
+                                                code,
+                                                AExpression::F(AFactor::Id(declaration.id)),
+                                                &mut instructions,
+                                                &mut global_max_identifier,
+                                                &mut global_max_label,
+                                                &mut named_variable_map,
+                                                scope,
+                                        );
+                                        let expr = emit_tactile_expr(
+                                                code,
+                                                init,
+                                                &mut instructions,
+                                                &mut global_max_identifier,
+                                                &mut global_max_label,
+                                                &mut named_variable_map,
+                                                scope,
+                                        );
+                                        instructions.push(TACTILEInstruction::Copy(expr, var));
+                                }
                         }
-                        BlockItem::S(astatement) => todo!(),
+                        BlockItem::S(astatement) => match astatement {
+                                AStatement::Return(aexpression) => {
+                                        let val = emit_tactile_expr(
+                                                code,
+                                                aexpression,
+                                                &mut instructions,
+                                                &mut global_max_identifier,
+                                                &mut global_max_label,
+                                                &mut named_variable_map,
+                                                scope,
+                                        );
+                                        instructions.push(TACTILEInstruction::Return(val));
+                                }
+                                AStatement::Expr(aexpression) => {
+                                        _ = emit_tactile_expr(
+                                                code,
+                                                aexpression,
+                                                &mut instructions,
+                                                &mut global_max_identifier,
+                                                &mut global_max_label,
+                                                &mut named_variable_map,
+                                                scope,
+                                        )
+                                }
+                                AStatement::Nul => {}
+                        },
                 }
         }
+
+        instructions.push(TACTILEInstruction::Return(Value::Constant(Constant::S(0))));
 
         TACTILEProgram {
                 function: TACTILEFunction {
