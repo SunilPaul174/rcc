@@ -36,7 +36,7 @@ fn resolve_declaration<'b, 'a: 'b>(
 
         identifier_set.insert(entry);
         if let Some(expr) = &declaration.init {
-                _ = Some(resolve_exp(code, expr, &mut identifier_set, scope)?);
+                resolve_exp(code, expr, &mut identifier_set, scope)?;
         }
 
         Ok(identifier_set)
@@ -50,10 +50,10 @@ fn resolve_statement<'b, 'a: 'b>(
 ) -> Result<HashSet<(&'b [u8], usize)>, Error> {
         match statement {
                 AStatement::Return(aexpression) => {
-                        _ = resolve_exp(code, aexpression, &mut identifier_set, scope)?;
+                        resolve_exp(code, aexpression, &mut identifier_set, scope)?;
                 }
                 AStatement::Expr(aexpression) => {
-                        _ = resolve_exp(code, aexpression, &mut identifier_set, scope)?;
+                        resolve_exp(code, aexpression, &mut identifier_set, scope)?;
                 }
                 AStatement::Nul => {}
         }
@@ -68,7 +68,7 @@ fn resolve_exp(code: &[u8], expr: &AExpression, identifier_set: &mut HashSet<(&[
                                 let AIdentifier { start, len } = id;
                                 let name = &code[start..start + len];
 
-                                let _ = resolve_exp(code, rval, identifier_set, scope)?;
+                                resolve_exp(code, rval, identifier_set, scope)?;
 
                                 if !identifier_set.contains(&(name, scope)) {
                                         let name = String::from_utf8(name.to_vec()).unwrap();
@@ -78,8 +78,8 @@ fn resolve_exp(code: &[u8], expr: &AExpression, identifier_set: &mut HashSet<(&[
                         _ => return Err(Error::InvalidLValue(expr.clone())),
                 },
                 AExpression::BinOp(_bin_op, left, right) => {
-                        _ = resolve_exp(code, &*left, identifier_set, scope)?;
-                        _ = resolve_exp(code, &*right, identifier_set, scope)?;
+                        resolve_exp(code, left, identifier_set, scope)?;
+                        resolve_exp(code, right, identifier_set, scope)?;
                 }
                 AExpression::F(afactor) => resolve_factor(code, afactor, identifier_set, scope)?,
         }
@@ -98,8 +98,8 @@ fn resolve_factor(code: &[u8], factor: &AFactor, identifier_set: &mut HashSet<(&
                         }
                 }
                 AFactor::Constant(_) => {}
-                AFactor::Unop(_unop, afactor) => resolve_factor(code, &*afactor, identifier_set, scope)?,
-                AFactor::Expr(expr) => resolve_exp(code, &*expr, identifier_set, scope)?,
+                AFactor::Unop(_unop, afactor) => resolve_factor(code, afactor, identifier_set, scope)?,
+                AFactor::Expr(expr) => resolve_exp(code, expr, identifier_set, scope)?,
         }
 
         Ok(())
@@ -117,7 +117,7 @@ pub fn analyze(value: Program<Parsed>) -> Result<Program<SemanticallyAnalyzed>, 
         let program = value.state.program;
         let code = value.state.code;
 
-        for i in program.function.function_body.iter() {
+        for i in &program.function.function_body {
                 match i {
                         D(declaration) => identifier_set = resolve_declaration(&code, declaration, identifier_set, 0)?,
                         S(astatement) => identifier_set = resolve_statement(&code, astatement, identifier_set, 0)?,

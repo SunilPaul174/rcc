@@ -27,7 +27,7 @@ pub static INT: &[u8] = b"int";
 pub static VOID: &[u8] = b"void";
 pub static RETURN: &[u8] = b"return";
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct KeywordHash(pub u32);
 
 impl Hasher for KeywordHash {
@@ -49,13 +49,10 @@ impl BuildHasher for KeywordHash {
         fn build_hasher(&self) -> Self::Hasher { *self }
 }
 
-impl Default for KeywordHash {
-        fn default() -> Self { KeywordHash(0) }
-}
 type KeywordHasher = BuildHasherDefault<KeywordHash>;
 
 pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
-        let mut keyword_map: HashMap<&[u8], TokenType, KeywordHasher> = HashMap::with_capacity_and_hasher(3, Default::default());
+        let mut keyword_map: HashMap<&[u8], TokenType, KeywordHasher> = HashMap::with_capacity_and_hasher(3, BuildHasherDefault::default());
         keyword_map.entry(INT).or_insert(TokenType::Int);
         keyword_map.entry(VOID).or_insert(TokenType::Void);
         keyword_map.entry(RETURN).or_insert(TokenType::Return);
@@ -86,6 +83,62 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
 }
 
 pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8], TokenType, S>) -> Option<Token> {
+        if let Some(value) = match_symbol(code, start) {
+                return Some(value);
+        }
+
+        let is_constant = code[start].is_ascii_digit();
+        if !((code[start] == b'_') | code[start].is_ascii_alphabetic() | is_constant) {
+                return None;
+        }
+
+        let mut len = 0;
+
+        for &i in &code[start..] {
+                let is_digit = i.is_ascii_digit();
+                if is_constant && !is_digit {
+                        if len == 0 {
+                                return None;
+                        }
+                        break;
+                }
+                let is_alpha = i.is_ascii_alphabetic();
+                if !((i == b'_') | is_alpha | is_digit) {
+                        break;
+                }
+                len += 1;
+        }
+
+        if is_constant {
+                return Some(Token {
+                        token_type: TokenType::Constant,
+                        len,
+                        start,
+                });
+        }
+
+        if (len <= 1) | (len > 8) {
+                return Some(Token {
+                        token_type: TokenType::Identifier,
+                        len,
+                        start,
+                });
+        }
+
+        let curr_slice = &code[start..start + len];
+
+        if let Some(&token_type) = keyword_map.get(curr_slice) {
+                return Some(Token { token_type, len, start });
+        }
+
+        Some(Token {
+                token_type: TokenType::Identifier,
+                len,
+                start,
+        })
+}
+
+fn match_symbol(code: &[u8], start: usize) -> Option<Token> {
         if let Some(token_type) = match code[start] {
                 b'(' => Some(TokenType::OpenParen),
                 b')' => Some(TokenType::CloseParen),
@@ -148,54 +201,5 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
                 }
                 return Some(Token { token_type, len: 1, start });
         }
-
-        let is_constant = code[start].is_ascii_digit();
-        if !((code[start] == b'_') | code[start].is_ascii_alphabetic() | is_constant) {
-                return None;
-        }
-
-        let mut len = 0;
-
-        for &i in &code[start..] {
-                let is_digit = i.is_ascii_digit();
-                if is_constant && !is_digit {
-                        if len == 0 {
-                                return None;
-                        }
-                        break;
-                }
-                let is_alpha = i.is_ascii_alphabetic();
-                if !((i == b'_') | is_alpha | is_digit) {
-                        break;
-                }
-                len += 1;
-        }
-
-        if is_constant {
-                return Some(Token {
-                        token_type: TokenType::Constant,
-                        len,
-                        start,
-                });
-        }
-
-        if (len <= 1) | (len > 8) {
-                return Some(Token {
-                        token_type: TokenType::Identifier,
-                        len,
-                        start,
-                });
-        }
-
-        let curr_slice = &code[start..start + len];
-
-        if let Some(&token_type) = keyword_map.get(curr_slice) {
-                return Some(Token { token_type, len, start });
-        }
-
-        Some(Token {
-                token_type: TokenType::Identifier,
-                len,
-                start,
-        })
+        None
 }

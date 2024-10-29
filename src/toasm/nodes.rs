@@ -1,5 +1,5 @@
 use crate::{
-        parse::nodes::{AIdentifier, BinOp, Unop},
+        parse::nodes::{AIdentifier, Binop, Unop},
         tactile::{Constant, Label},
 };
 
@@ -66,17 +66,24 @@ pub enum ASMBinary {
         XOr,
         And,
 }
-pub fn from_binop(binop: BinOp) -> Option<ASMBinary> {
-        match binop {
-                BinOp::Add => Some(ASMBinary::Add),
-                BinOp::Multiply => Some(ASMBinary::Multiply),
-                BinOp::Subtract => Some(ASMBinary::Subtract),
-                BinOp::LeftShift => Some(ASMBinary::LeftShift),
-                BinOp::RightShift => Some(ASMBinary::RightShift),
-                BinOp::BitwiseOr => Some(ASMBinary::Or),
-                BinOp::BitwiseXOr => Some(ASMBinary::XOr),
-                BinOp::BitwiseAnd => Some(ASMBinary::And),
-                _ => None,
+
+#[derive(Debug)]
+pub struct NotASMBinary;
+impl TryFrom<Binop> for ASMBinary {
+        type Error = NotASMBinary;
+
+        fn try_from(value: Binop) -> Result<Self, Self::Error> {
+                match value {
+                        Binop::Add => Ok(ASMBinary::Add),
+                        Binop::Multiply => Ok(ASMBinary::Multiply),
+                        Binop::Subtract => Ok(ASMBinary::Subtract),
+                        Binop::LeftShift => Ok(ASMBinary::LeftShift),
+                        Binop::RightShift => Ok(ASMBinary::RightShift),
+                        Binop::BitwiseOr => Ok(ASMBinary::Or),
+                        Binop::BitwiseXOr => Ok(ASMBinary::XOr),
+                        Binop::BitwiseAnd => Ok(ASMBinary::And),
+                        _ => Err(NotASMBinary),
+                }
         }
 }
 

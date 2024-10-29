@@ -1,4 +1,4 @@
-use nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, BinOp, BlockItem, Declaration, Unop};
+use nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Declaration, Unop};
 use thiserror::Error;
 
 use crate::{
@@ -92,7 +92,7 @@ fn parse_declaration(tokens: &mut [Token], ptr: &mut usize) -> Result<Declaratio
 }
 
 // <statement> ::= "return" <exp> ";" | <exp> ; | ;
-fn parse_statement(tokens: &mut [Token], ptr: &mut usize) -> Result<AStatement, Error> {
+fn parse_statement(tokens: &[Token], ptr: &mut usize) -> Result<AStatement, Error> {
         if is_token(tokens, TokenType::Return, ptr).is_ok() {
                 let expr = parse_expression(tokens, ptr, 0)?;
                 is_token(tokens, TokenType::SemiColon, ptr)?;
@@ -107,7 +107,7 @@ fn parse_statement(tokens: &mut [Token], ptr: &mut usize) -> Result<AStatement, 
 }
 
 // <exp> ::= <factor> | <exp> <binop> <exp>
-fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
+fn parse_expression(tokens: &[Token], ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
         let mut left = AExpression::F(parse_factor(tokens, ptr)?);
 
         while let Some(operator) = parse_binary_operator(tokens, ptr) {
@@ -118,7 +118,7 @@ fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_precedence: usize
                         break;
                 }
 
-                if operator == BinOp::Equal {
+                if operator == Binop::Equal {
                         let right = parse_expression(tokens, ptr, operator_precedence)?;
                         left = AExpression::Assignment(Box::new(left), Box::new(right));
                 } else {
@@ -130,8 +130,8 @@ fn parse_expression(tokens: &mut [Token], ptr: &mut usize, min_precedence: usize
         Ok(left)
 }
 
-// <factor> ::= <identifier> | <int> | "(" <exp> ")" | <unop> <factor>
-fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, Error> {
+// <factor> ::= <identifier> | <int> | "(" <exp> ")" | <unop> <factor> | <factor> <unop> (postfix in/decrement)
+fn parse_factor(tokens: &[Token], ptr: &mut usize) -> Result<AFactor, Error> {
         if let Ok(identifier) = parse_identifier(tokens, ptr) {
                 return Ok(AFactor::Id(identifier));
         }
@@ -161,7 +161,7 @@ fn parse_factor(tokens: &mut [Token], ptr: &mut usize) -> Result<AFactor, Error>
 }
 
 // <unop> ::= "-" | "~" | "!"
-fn parse_unary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<Unop> {
+fn parse_unary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Unop> {
         if let Some(unop) = match tokens[*ptr].token_type {
                 TokenType::Minus => Some(Unop::Negate),
                 TokenType::Tilde => Some(Unop::Complement),
@@ -175,29 +175,44 @@ fn parse_unary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<Unop> {
         }
 }
 
-// <binop> ::= "-" | "+" | "*" | "/" | "%" | "<<" | ">>" | "&" | "|" | | "^"
-// | "&&" | "||" | "==" | "!=" | "<" | "<=" | ">" | ">="
-fn parse_binary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<BinOp> {
+/*
+<binop> ::= "-" | "+" | "*" | "/" | "%" | "<<" | ">>" | "&" | "|" | | "^"
+| "&&" | "||" | "==" | "!=" | "<" | "<=" | ">" | ">="
+| += | -= | *= | /= | %= | &= | ^= | <<= | >>=
+*/
+fn parse_binary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Binop> {
         if let Some(binop) = match tokens[*ptr].token_type {
-                TokenType::Minus => Some(BinOp::Subtract),
-                TokenType::Plus => Some(BinOp::Add),
-                TokenType::Asterisk => Some(BinOp::Multiply),
-                TokenType::ForwardSlash => Some(BinOp::Divide),
-                TokenType::Percent => Some(BinOp::Remainder),
-                TokenType::BitwiseAnd => Some(BinOp::BitwiseAnd),
-                TokenType::LogicalAnd => Some(BinOp::LogicalAnd),
-                TokenType::BitwiseOr => Some(BinOp::BitwiseOr),
-                TokenType::LogicalOr => Some(BinOp::LogicalOr),
-                TokenType::BitwiseXOr => Some(BinOp::BitwiseXOr),
-                TokenType::LeftShift => Some(BinOp::LeftShift),
-                TokenType::RightShift => Some(BinOp::RightShift),
-                TokenType::LessThan => Some(BinOp::LessThan),
-                TokenType::MoreThan => Some(BinOp::MoreThan),
-                TokenType::LessThanOrEqual => Some(BinOp::LessThanOrEqual),
-                TokenType::MoreThanOrEqual => Some(BinOp::MoreThanOrEqual),
-                TokenType::EqualTo => Some(BinOp::EqualTo),
-                TokenType::NotEqualTo => Some(BinOp::NotEqualTo),
-                TokenType::Equal => Some(BinOp::Equal),
+                TokenType::Minus => Some(Binop::Subtract),
+                TokenType::Plus => Some(Binop::Add),
+                TokenType::Asterisk => Some(Binop::Multiply),
+                TokenType::ForwardSlash => Some(Binop::Divide),
+                TokenType::Percent => Some(Binop::Remainder),
+                TokenType::BitwiseAnd => Some(Binop::BitwiseAnd),
+                TokenType::LogicalAnd => Some(Binop::LogicalAnd),
+                TokenType::BitwiseOr => Some(Binop::BitwiseOr),
+                TokenType::LogicalOr => Some(Binop::LogicalOr),
+                TokenType::BitwiseXOr => Some(Binop::BitwiseXOr),
+                TokenType::LeftShift => Some(Binop::LeftShift),
+                TokenType::RightShift => Some(Binop::RightShift),
+                TokenType::LessThan => Some(Binop::LessThan),
+                TokenType::MoreThan => Some(Binop::MoreThan),
+                TokenType::LessThanOrEqual => Some(Binop::LessThanOrEqual),
+                TokenType::MoreThanOrEqual => Some(Binop::MoreThanOrEqual),
+                TokenType::EqualTo => Some(Binop::EqualTo),
+                TokenType::NotEqualTo => Some(Binop::NotEqualTo),
+                TokenType::Equal => Some(Binop::Equal),
+                // TokenType::AddAssign => Some(Binop::AddAssign),
+                // TokenType::SubtractAssign => Some(Binop::SubtractAssign),
+                // TokenType::MultiplyAssign => Some(Binop::MultiplyAssign),
+                // TokenType::DivideAssign => Some(Binop::DivideAssign),
+                // TokenType::RemainderAssign => Some(Binop::RemainderAssign),
+                // TokenType::LeftShiftAssign => Some(Binop::LeftShiftAssign),
+                // TokenType::RightShiftAssign => Some(Binop::RightShiftAssign),
+                // TokenType::BitwiseAndAssign => Some(Binop::BitwiseAndAssign),
+                // TokenType::LogicalAndAssign => Some(Binop::LogicalAndAssign),
+                // TokenType::BitwiseOrAssign => Some(Binop::BitwiseOrAssign),
+                // TokenType::LogicalOrAssign => Some(Binop::LogicalOrAssign),
+                // TokenType::BitwiseXOrAssign => Some(Binop::BitwiseXOrAssign),
                 _ => None,
         } {
                 *ptr += 1;
@@ -208,20 +223,20 @@ fn parse_binary_operator(tokens: &mut [Token], ptr: &mut usize) -> Option<BinOp>
 }
 
 // <identifier> ::= ? An identifier token ?
-fn parse_identifier(tokens: &mut [Token], ptr: &mut usize) -> Result<AIdentifier, Error> {
+fn parse_identifier(tokens: &[Token], ptr: &mut usize) -> Result<AIdentifier, Error> {
         let (start, len) = is_token(tokens, TokenType::Identifier, ptr)?;
 
         Ok(AIdentifier { start, len })
 }
 
 // <int> ::= ? A constant token ?
-fn parse_constant(tokens: &mut [Token], ptr: &mut usize) -> Result<AConstant, Error> {
+fn parse_constant(tokens: &[Token], ptr: &mut usize) -> Result<AConstant, Error> {
         let (start, len) = is_token(tokens, TokenType::Constant, ptr)?;
 
         Ok(AConstant { start, len })
 }
 
-fn is_token(tokens: &mut [Token], wanted_token_type: TokenType, ptr: &mut usize) -> Result<(usize, usize), Error> {
+fn is_token(tokens: &[Token], wanted_token_type: TokenType, ptr: &mut usize) -> Result<(usize, usize), Error> {
         let Some(&Token { token_type, len, start }) = tokens.get(*ptr) else {
                 return Err(Error::NotEnoughTokens);
         };
@@ -234,26 +249,30 @@ fn is_token(tokens: &mut [Token], wanted_token_type: TokenType, ptr: &mut usize)
         Err(Error::InvalidTokenAt(tokens[*ptr], wanted_token_type))
 }
 
-fn precedence(operator: BinOp) -> usize {
+fn precedence(operator: Binop) -> usize {
         match operator {
-                BinOp::Multiply => 50,
-                BinOp::Divide => 50,
-                BinOp::Remainder => 50,
-                BinOp::Add => 45,
-                BinOp::Subtract => 45,
-                BinOp::LeftShift => 37,
-                BinOp::RightShift => 37,
-                BinOp::LessThan => 35,
-                BinOp::LessThanOrEqual => 35,
-                BinOp::MoreThan => 35,
-                BinOp::MoreThanOrEqual => 35,
-                BinOp::EqualTo => 30,
-                BinOp::NotEqualTo => 30,
-                BinOp::BitwiseAnd => 20,
-                BinOp::BitwiseXOr => 17,
-                BinOp::BitwiseOr => 15,
-                BinOp::LogicalAnd => 10,
-                BinOp::LogicalOr => 5,
-                BinOp::Equal => 1,
+                Binop::Multiply | Binop::Divide | Binop::Remainder => 50,
+                Binop::Add | Binop::Subtract => 45,
+                Binop::LeftShift | Binop::RightShift => 37,
+                Binop::LessThan | Binop::LessThanOrEqual | Binop::MoreThan | Binop::MoreThanOrEqual => 35,
+                Binop::EqualTo | Binop::NotEqualTo => 30,
+                Binop::BitwiseAnd => 20,
+                Binop::BitwiseXOr => 17,
+                Binop::BitwiseOr => 15,
+                Binop::LogicalAnd => 10,
+                Binop::LogicalOr => 5,
+                Binop::Equal => 1,
+                // Binop::AddAssign => todo!(),
+                // Binop::SubtractAssign => todo!(),
+                // Binop::MultiplyAssign => todo!(),
+                // Binop::DivideAssign => todo!(),
+                // Binop::RemainderAssign => todo!(),
+                // Binop::LeftShiftAssign => todo!(),
+                // Binop::RightShiftAssign => todo!(),
+                // Binop::BitwiseAndAssign => todo!(),
+                // Binop::LogicalAndAssign => todo!(),
+                // Binop::BitwiseOrAssign => todo!(),
+                // Binop::LogicalOrAssign => todo!(),
+                // Binop::BitwiseXOrAssign => todo!(),
         }
 }

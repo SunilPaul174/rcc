@@ -1,7 +1,7 @@
 use std::{collections::HashMap, hash::BuildHasher};
 
 use crate::{
-        parse::nodes::{AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, BinOp, BlockItem, Declaration, Unop},
+        parse::nodes::{AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, Unop},
         semanalysis::SemanticallyAnalyzed,
         Program, State,
 };
@@ -32,7 +32,7 @@ pub enum Constant {
 pub enum TACTILEInstruction {
         Return(Value),
         Unary(Unop, Value, Value),
-        Binary(BinOp, Value, Value, Value),
+        Binary(Binop, Value, Value, Value),
         Copy(Value, Value),
         Jump(Label),
         JumpIfZero(Value, Label),
@@ -73,7 +73,7 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
                         dst
                 }
                 AExpression::BinOp(binop, src, dst) => match binop {
-                        BinOp::LogicalOr => {
+                        Binop::LogicalOr => {
                                 let false_label = Label(*max_label);
                                 *max_label += 1;
                                 let end_label = Label(*max_label);
@@ -95,7 +95,7 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
 
                                 dst
                         }
-                        BinOp::LogicalAnd => {
+                        Binop::LogicalAnd => {
                                 let false_label = Label(*max_label);
                                 *max_label += 1;
                                 let end_label = Label(*max_label);
@@ -204,7 +204,7 @@ fn tactile_program(program: AProgram, code: &[u8]) -> TACTILEProgram {
                                                 &mut global_max_label,
                                                 &mut named_variable_map,
                                                 scope,
-                                        )
+                                        );
                                 }
                                 AStatement::Nul => {}
                         },

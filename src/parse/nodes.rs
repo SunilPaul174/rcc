@@ -43,24 +43,28 @@ pub enum AFactor {
 #[derive(Debug, Clone)]
 pub enum AExpression {
         F(AFactor),
-        BinOp(BinOp, Box<AExpression>, Box<AExpression>),
+        BinOp(Binop, Box<AExpression>, Box<AExpression>),
         Assignment(Box<AExpression>, Box<AExpression>),
 }
 impl Display for AExpression {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
-                        AExpression::F(afactor) => write!(f, "{:?}", afactor),
-                        AExpression::BinOp(_bin_op, _aexpression, _aexpression1) => write!(f, "{:?}", self),
-                        AExpression::Assignment(aexpression, aexpression1) => write!(f, "left: {:?}, right: {:?}", aexpression, aexpression1),
+                        AExpression::F(afactor) => write!(f, "{afactor:?}",),
+                        AExpression::BinOp(..) => write!(f, "{self:?}"),
+                        AExpression::Assignment(left, right) => write!(f, "left: {left:?}, right: {right:?}"),
                 }
         }
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unop {
         Negate,
         Complement,
         // !
         Not,
+        IncrementPre,
+        IncrementPost,
+        DecrementPre,
+        DecrementPost,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct AConstant {
@@ -68,24 +72,36 @@ pub struct AConstant {
         pub len: usize,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BinOp {
+pub enum Binop {
         Add,
+        // AddAssign,
         Subtract,
+        // SubtractAssign,
         Multiply,
+        // MultiplyAssign,
         Divide,
+        // DivideAssign,
         Remainder,
+        // RemainderAssign,
         LeftShift,
+        // LeftShiftAssign,
         RightShift,
+        // RightShiftAssign,
         BitwiseAnd,
+        // BitwiseAndAssign,
         LogicalAnd,
+        // LogicalAndAssign,
         BitwiseOr,
+        // BitwiseOrAssign,
         LogicalOr,
+        // LogicalOrAssign,
+        BitwiseXOr,
+        // BitwiseXOrAssign,
         EqualTo,
         NotEqualTo,
         LessThan,
         LessThanOrEqual,
         MoreThan,
         MoreThanOrEqual,
-        BitwiseXOr,
         Equal,
 }

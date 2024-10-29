@@ -57,6 +57,8 @@ pub static CDQ: &[u8; 5] = b"\tcdq\n";
 pub static TEARDOWN: &[u8; 33] = b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n";
 
 // we hold the stack in the tactile stage as the number of variables on the stack. However, the all the variables are QWords, so you need to subtract from top of stack
+#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_possible_truncation)]
 fn the_real_stack(val: usize) -> i32 { -((val as i32) * 4) }
 
 fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
@@ -84,10 +86,9 @@ fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
                 Operand::Register(register) => instructions.extend(match (register, setcc) {
                         (Register::AX, false) => EAX,
                         (Register::R10, false) => R10D,
-                        (Register::DX, false) => DX,
+                        (Register::DX, _) => DX,
                         (Register::R11, false) => R11D,
                         (Register::AX, true) => AX,
-                        (Register::DX, true) => DX,
                         (Register::R10, true) => R10B,
                         (Register::R11, true) => R11B,
                 }),
@@ -122,6 +123,10 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                                 Unop::Negate => NEGL,
                                 Unop::Complement => NOTL,
                                 Unop::Not => panic!("not possible; removed in tactile->abstractasm stage."),
+                                Unop::IncrementPre => todo!(),
+                                Unop::IncrementPost => todo!(),
+                                Unop::DecrementPre => todo!(),
+                                Unop::DecrementPost => todo!(),
                         };
                         instructions.extend_from_slice(op);
                         extend_from_operand(operand, instructions, false);
@@ -167,13 +172,13 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                 }
                 ASMInstruction::Jmp(label) => {
                         instructions.extend_from_slice(JMP);
-                        instructions.extend_from_slice(&[b'.', b'L']);
+                        instructions.extend_from_slice(b".L");
                         instructions.extend_from_slice(&label.0.to_string().into_bytes());
                 }
                 ASMInstruction::JmpCC(cond_code, label) => {
                         instructions.extend_from_slice(b"\tj");
                         instructions.extend_from_slice(cond_code_to_slice(cond_code));
-                        instructions.extend_from_slice(&[b'.', b'L']);
+                        instructions.extend_from_slice(b".L");
                         instructions.extend_from_slice(&label.0.to_string().into_bytes());
                         instructions.push(b'\n');
                 }

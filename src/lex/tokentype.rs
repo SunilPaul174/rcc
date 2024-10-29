@@ -33,6 +33,7 @@ pub enum TokenType {
         BitwiseOr,
         BitwiseOrAssign,
         LogicalOr,
+        LogicalOrAssign,
         BitwiseXOr,
         BitwiseXOrAssign,
         LeftShift,
