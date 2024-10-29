@@ -49,7 +49,7 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Err
 }
 
 // <function> ::= "int" <identifier> "(" "void" ")" "{" { <block_item> } "}"
-fn parse_function(tokens: &mut [Token], ptr: &mut usize) -> Result<AFunction, Error> {
+fn parse_function(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFunction, Error> {
         is_token(tokens, TokenType::Int, ptr)?;
         let identifier = parse_identifier(tokens, ptr)?;
         is_token(tokens, TokenType::OpenParen, ptr)?;
@@ -67,7 +67,7 @@ fn parse_function(tokens: &mut [Token], ptr: &mut usize) -> Result<AFunction, Er
 }
 
 // <block-item> ::= <statement> | <declaration>
-fn parse_block_item(tokens: &mut [Token], ptr: &mut usize) -> Result<BlockItem, Error> {
+fn parse_block_item(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<BlockItem, Error> {
         match tokens[*ptr].token_type {
                 TokenType::Int => Ok(BlockItem::D(parse_declaration(tokens, ptr)?)),
                 _ => Ok(BlockItem::S(parse_statement(tokens, ptr)?)),
@@ -75,7 +75,7 @@ fn parse_block_item(tokens: &mut [Token], ptr: &mut usize) -> Result<BlockItem, 
 }
 
 // <declaration> ::= "int" <identifier> [ "=" <exp> ] ";"
-fn parse_declaration(tokens: &mut [Token], ptr: &mut usize) -> Result<Declaration, Error> {
+fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declaration, Error> {
         is_token(tokens, TokenType::Int, ptr)?;
 
         let (start, len) = is_token(tokens, TokenType::Identifier, ptr)?;
@@ -92,7 +92,7 @@ fn parse_declaration(tokens: &mut [Token], ptr: &mut usize) -> Result<Declaratio
 }
 
 // <statement> ::= "return" <exp> ";" | <exp> ; | ;
-fn parse_statement(tokens: &[Token], ptr: &mut usize) -> Result<AStatement, Error> {
+fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatement, Error> {
         if is_token(tokens, TokenType::Return, ptr).is_ok() {
                 let expr = parse_expression(tokens, ptr, 0)?;
                 is_token(tokens, TokenType::SemiColon, ptr)?;
@@ -106,12 +106,30 @@ fn parse_statement(tokens: &[Token], ptr: &mut usize) -> Result<AStatement, Erro
         }
 }
 
+fn compound_to_normal_operator(binop: Binop) -> Option<Binop> {
+        match binop {
+                Binop::AddAssign => Some(Binop::Add),
+                Binop::SubtractAssign => Some(Binop::Subtract),
+                Binop::MultiplyAssign => Some(Binop::Multiply),
+                Binop::DivideAssign => Some(Binop::Divide),
+                Binop::RemainderAssign => Some(Binop::Remainder),
+                Binop::LeftShiftAssign => Some(Binop::LeftShift),
+                Binop::RightShiftAssign => Some(Binop::RightShift),
+                Binop::BitwiseAndAssign => Some(Binop::BitwiseAnd),
+                Binop::LogicalAndAssign => Some(Binop::LogicalAnd),
+                Binop::BitwiseOrAssign => Some(Binop::BitwiseOr),
+                Binop::LogicalOrAssign => Some(Binop::LogicalOr),
+                Binop::BitwiseXOrAssign => Some(Binop::BitwiseXOr),
+                _ => None,
+        }
+}
+
 // <exp> ::= <factor> | <exp> <binop> <exp>
-fn parse_expression(tokens: &[Token], ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
+fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
         let mut left = AExpression::F(parse_factor(tokens, ptr)?);
 
         while let Some(operator) = parse_binary_operator(tokens, ptr) {
-                let operator_precedence = precedence(operator);
+                let operator_precedence = binary_operator_precedence(operator);
 
                 if operator_precedence < min_precedence {
                         *ptr -= 1;
@@ -120,6 +138,13 @@ fn parse_expression(tokens: &[Token], ptr: &mut usize, min_precedence: usize) ->
 
                 if operator == Binop::Equal {
                         let right = parse_expression(tokens, ptr, operator_precedence)?;
+                        left = AExpression::Assignment(Box::new(left), Box::new(right));
+                } else if let Some(act_op) = compound_to_normal_operator(operator) {
+                        let left_val_on_right_side_of_compound = left.clone();
+
+                        let mut right = parse_expression(tokens, ptr, operator_precedence)?;
+                        right = AExpression::BinOp(act_op, Box::new(left_val_on_right_side_of_compound), Box::new(right));
+
                         left = AExpression::Assignment(Box::new(left), Box::new(right));
                 } else {
                         let right = parse_expression(tokens, ptr, operator_precedence + 1)?;
@@ -131,18 +156,44 @@ fn parse_expression(tokens: &[Token], ptr: &mut usize, min_precedence: usize) ->
 }
 
 // <factor> ::= <identifier> | <int> | "(" <exp> ")" | <unop> <factor> | <factor> <unop> (postfix in/decrement)
-fn parse_factor(tokens: &[Token], ptr: &mut usize) -> Result<AFactor, Error> {
+fn parse_factor(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFactor, Error> {
+        let postfix_unop = |f: Token| {
+                if let Some(incdec) = match f.token_type {
+                        TokenType::DoubleMinus => Some(Unop::DecrementPost),
+                        TokenType::DoublePlus => Some(Unop::IncrementPost),
+                        _ => None,
+                } {
+                        Some(incdec)
+                } else {
+                        None
+                }
+        };
+
         if let Ok(identifier) = parse_identifier(tokens, ptr) {
+                if let Some(incdec) = postfix_unop(tokens[*ptr]) {
+                        *ptr += 1;
+                        return Ok(AFactor::Unop(incdec, Box::new(AFactor::Id(identifier))));
+                }
+
                 return Ok(AFactor::Id(identifier));
         }
 
         if let Ok(constant) = parse_constant(tokens, ptr) {
+                if let Some(incdec) = postfix_unop(tokens[*ptr]) {
+                        *ptr += 1;
+                        return Ok(AFactor::Unop(incdec, Box::new(AFactor::Constant(constant))));
+                }
                 return Ok(AFactor::Constant(constant));
         }
 
         if is_token(tokens, TokenType::OpenParen, ptr).is_ok() {
                 if let Ok(expr) = parse_expression(tokens, ptr, 0) {
                         if is_token(tokens, TokenType::CloseParen, ptr).is_ok() {
+                                if let Some(incdec) = postfix_unop(tokens[*ptr]) {
+                                        *ptr += 1;
+                                        return Ok(AFactor::Unop(incdec, Box::new(AFactor::Expr(Box::new(expr)))));
+                                }
+
                                 return Ok(AFactor::Expr(Box::new(expr)));
                         }
                         *ptr -= 1;
@@ -152,6 +203,10 @@ fn parse_factor(tokens: &[Token], ptr: &mut usize) -> Result<AFactor, Error> {
 
         if let Some(unop) = parse_unary_operator(tokens, ptr) {
                 if let Ok(factor) = parse_factor(tokens, ptr) {
+                        if let Some(incdec) = postfix_unop(tokens[*ptr]) {
+                                *ptr += 1;
+                                return Ok(AFactor::Unop(incdec, Box::new(factor)));
+                        }
                         return Ok(AFactor::Unop(unop, Box::new(factor)));
                 }
                 *ptr -= 1;
@@ -166,6 +221,8 @@ fn parse_unary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Unop> {
                 TokenType::Minus => Some(Unop::Negate),
                 TokenType::Tilde => Some(Unop::Complement),
                 TokenType::Not => Some(Unop::Not),
+                TokenType::DoubleMinus => Some(Unop::IncrementPost),
+                TokenType::DoublePlus => Some(Unop::DecrementPost),
                 _ => None,
         } {
                 *ptr += 1;
@@ -178,8 +235,8 @@ fn parse_unary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Unop> {
 /*
 <binop> ::= "-" | "+" | "*" | "/" | "%" | "<<" | ">>" | "&" | "|" | | "^"
 | "&&" | "||" | "==" | "!=" | "<" | "<=" | ">" | ">="
-| += | -= | *= | /= | %= | &= | ^= | <<= | >>=
 */
+// | += | -= | *= | /= | %= | &= | ^= | <<= | >>=
 fn parse_binary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Binop> {
         if let Some(binop) = match tokens[*ptr].token_type {
                 TokenType::Minus => Some(Binop::Subtract),
@@ -201,18 +258,18 @@ fn parse_binary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Binop> {
                 TokenType::EqualTo => Some(Binop::EqualTo),
                 TokenType::NotEqualTo => Some(Binop::NotEqualTo),
                 TokenType::Equal => Some(Binop::Equal),
-                // TokenType::AddAssign => Some(Binop::AddAssign),
-                // TokenType::SubtractAssign => Some(Binop::SubtractAssign),
-                // TokenType::MultiplyAssign => Some(Binop::MultiplyAssign),
-                // TokenType::DivideAssign => Some(Binop::DivideAssign),
-                // TokenType::RemainderAssign => Some(Binop::RemainderAssign),
-                // TokenType::LeftShiftAssign => Some(Binop::LeftShiftAssign),
-                // TokenType::RightShiftAssign => Some(Binop::RightShiftAssign),
-                // TokenType::BitwiseAndAssign => Some(Binop::BitwiseAndAssign),
-                // TokenType::LogicalAndAssign => Some(Binop::LogicalAndAssign),
-                // TokenType::BitwiseOrAssign => Some(Binop::BitwiseOrAssign),
-                // TokenType::LogicalOrAssign => Some(Binop::LogicalOrAssign),
-                // TokenType::BitwiseXOrAssign => Some(Binop::BitwiseXOrAssign),
+                TokenType::AddAssign => Some(Binop::AddAssign),
+                TokenType::SubtractAssign => Some(Binop::SubtractAssign),
+                TokenType::MultiplyAssign => Some(Binop::MultiplyAssign),
+                TokenType::DivideAssign => Some(Binop::DivideAssign),
+                TokenType::RemainderAssign => Some(Binop::RemainderAssign),
+                TokenType::LeftShiftAssign => Some(Binop::LeftShiftAssign),
+                TokenType::RightShiftAssign => Some(Binop::RightShiftAssign),
+                TokenType::BitwiseAndAssign => Some(Binop::BitwiseAndAssign),
+                TokenType::LogicalAndAssign => Some(Binop::LogicalAndAssign),
+                TokenType::BitwiseOrAssign => Some(Binop::BitwiseOrAssign),
+                TokenType::LogicalOrAssign => Some(Binop::LogicalOrAssign),
+                TokenType::BitwiseXOrAssign => Some(Binop::BitwiseXOrAssign),
                 _ => None,
         } {
                 *ptr += 1;
@@ -249,7 +306,7 @@ fn is_token(tokens: &[Token], wanted_token_type: TokenType, ptr: &mut usize) -> 
         Err(Error::InvalidTokenAt(tokens[*ptr], wanted_token_type))
 }
 
-fn precedence(operator: Binop) -> usize {
+fn binary_operator_precedence(operator: Binop) -> usize {
         match operator {
                 Binop::Multiply | Binop::Divide | Binop::Remainder => 50,
                 Binop::Add | Binop::Subtract => 45,
@@ -262,17 +319,7 @@ fn precedence(operator: Binop) -> usize {
                 Binop::LogicalAnd => 10,
                 Binop::LogicalOr => 5,
                 Binop::Equal => 1,
-                // Binop::AddAssign => todo!(),
-                // Binop::SubtractAssign => todo!(),
-                // Binop::MultiplyAssign => todo!(),
-                // Binop::DivideAssign => todo!(),
-                // Binop::RemainderAssign => todo!(),
-                // Binop::LeftShiftAssign => todo!(),
-                // Binop::RightShiftAssign => todo!(),
-                // Binop::BitwiseAndAssign => todo!(),
-                // Binop::LogicalAndAssign => todo!(),
-                // Binop::BitwiseOrAssign => todo!(),
-                // Binop::LogicalOrAssign => todo!(),
-                // Binop::BitwiseXOrAssign => todo!(),
+                // This is for the compound operators. MAKE VERY VERY FUCKING SURE NOTHING ELSE GETS IN HERE.
+                _ => 0,
         }
 }
