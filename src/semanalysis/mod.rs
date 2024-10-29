@@ -117,7 +117,7 @@ pub fn analyze(value: Program<Parsed>) -> Result<Program<SemanticallyAnalyzed>, 
         let program = value.state.program;
         let code = value.state.code;
 
-        for i in program.functions.function_body.iter() {
+        for i in program.function.function_body.iter() {
                 match i {
                         D(declaration) => identifier_set = resolve_declaration(&code, declaration, identifier_set, 0)?,
                         S(astatement) => identifier_set = resolve_statement(&code, astatement, identifier_set, 0)?,

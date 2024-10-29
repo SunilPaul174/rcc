@@ -150,7 +150,7 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
 }
 
 fn tactile_program(program: AProgram, code: &[u8]) -> TACTILEProgram {
-        let value = program.functions;
+        let value = program.function;
         let mut instructions = vec![];
         let mut global_max_label = 1;
         let mut global_max_identifier = 1;

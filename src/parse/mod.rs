@@ -33,7 +33,7 @@ pub enum Error {
 // <program> ::= <function>
 pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Error> {
         let mut ptr = 0;
-        let functions = parse_function(&mut program.state.tokens, &mut ptr)?;
+        let function = parse_function(&mut program.state.tokens, &mut ptr)?;
 
         if ptr < program.state.tokens.len() {
                 return Err(Error::TooManyTokens);
@@ -42,7 +42,7 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Err
         Ok(Program {
                 state: Parsed {
                         code: program.state.code,
-                        program: AProgram { functions },
+                        program: AProgram { function },
                 },
                 operation: program.operation,
         })

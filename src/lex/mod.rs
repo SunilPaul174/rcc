@@ -107,23 +107,43 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
                 b'!' => Some(TokenType::Not),
                 _ => None,
         } {
-                let temp = code.get(start + 1);
-                if temp.is_none() {
+                let Some(curr) = code.get(start + 1) else {
                         return Some(Token { token_type, len: 1, start });
-                }
+                };
 
-                if let Some(token_type) = match (token_type, temp.unwrap()) {
-                        (TokenType::Minus, b'-') => Some(TokenType::Decrement),
+                if let Some(token_type) = match (token_type, curr) {
+                        (TokenType::Minus, b'-') => Some(TokenType::DoubleMinus),
+                        (TokenType::Minus, b'=') => Some(TokenType::SubtractAssign),
+                        (TokenType::Plus, b'+') => Some(TokenType::DoublePlus),
+                        (TokenType::Plus, b'=') => Some(TokenType::AddAssign),
+                        (TokenType::Asterisk, b'=') => Some(TokenType::MultiplyAssign),
+                        (TokenType::ForwardSlash, b'=') => Some(TokenType::DivideAssign),
+                        (TokenType::Percent, b'=') => Some(TokenType::RemainderAssign),
                         (TokenType::BitwiseAnd, b'&') => Some(TokenType::LogicalAnd),
+                        (TokenType::BitwiseOr, b'|') => Some(TokenType::LogicalOr),
                         (TokenType::LessThan, b'<') => Some(TokenType::LeftShift),
                         (TokenType::LessThan, b'=') => Some(TokenType::LessThanOrEqual),
                         (TokenType::MoreThan, b'>') => Some(TokenType::RightShift),
                         (TokenType::MoreThan, b'=') => Some(TokenType::MoreThanOrEqual),
                         (TokenType::Equal, b'=') => Some(TokenType::EqualTo),
                         (TokenType::Not, b'=') => Some(TokenType::NotEqualTo),
-                        (TokenType::BitwiseOr, b'|') => Some(TokenType::LogicalOr),
+                        (TokenType::BitwiseAnd, b'=') => Some(TokenType::BitwiseAndAssign),
+                        (TokenType::BitwiseOr, b'=') => Some(TokenType::BitwiseOrAssign),
+                        (TokenType::BitwiseXOr, b'=') => Some(TokenType::BitwiseXOrAssign),
                         _ => None,
                 } {
+                        let Some(curr) = code.get(start + 2) else {
+                                return Some(Token { token_type, len: 2, start });
+                        };
+
+                        if let Some(token_type) = match (token_type, curr) {
+                                (TokenType::RightShift, b'=') => Some(TokenType::RightShiftAssign),
+                                (TokenType::LeftShift, b'=') => Some(TokenType::LeftShiftAssign),
+                                _ => None,
+                        } {
+                                return Some(Token { token_type, len: 3, start });
+                        }
+
                         return Some(Token { token_type, len: 2, start });
                 }
                 return Some(Token { token_type, len: 1, start });
