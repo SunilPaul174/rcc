@@ -52,10 +52,7 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Err
 fn parse_function(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFunction, Error> {
         is_token(tokens, TokenType::Int, ptr)?;
         let identifier = parse_identifier(tokens, ptr)?;
-        is_token(tokens, TokenType::OpenParen, ptr)?;
-        is_token(tokens, TokenType::Void, ptr)?;
-        is_token(tokens, TokenType::CloseParen, ptr)?;
-        is_token(tokens, TokenType::OpenBrace, ptr)?;
+        are_tokens(tokens, &[TokenType::OpenParen, TokenType::Void, TokenType::CloseParen, TokenType::OpenBrace], ptr)?;
 
         let mut function_body = vec![];
         while tokens[*ptr].token_type != TokenType::CloseBrace {
@@ -235,8 +232,8 @@ fn parse_unary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Unop> {
 /*
 <binop> ::= "-" | "+" | "*" | "/" | "%" | "<<" | ">>" | "&" | "|" | | "^"
 | "&&" | "||" | "==" | "!=" | "<" | "<=" | ">" | ">="
+| += | -= | *= | /= | %= | &= | ^= | <<= | >>=
 */
-// | += | -= | *= | /= | %= | &= | ^= | <<= | >>=
 fn parse_binary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Binop> {
         if let Some(binop) = match tokens[*ptr].token_type {
                 TokenType::Minus => Some(Binop::Subtract),
@@ -304,6 +301,16 @@ fn is_token(tokens: &[Token], wanted_token_type: TokenType, ptr: &mut usize) -> 
         }
 
         Err(Error::InvalidTokenAt(tokens[*ptr], wanted_token_type))
+}
+
+fn are_tokens(tokens: &[Token], wanted_token_type: &[TokenType], ptr: &mut usize) -> Result<(), Error> {
+        for (idx, &i) in wanted_token_type.iter().enumerate() {
+                if tokens[*ptr + idx].token_type != i {
+                        return Err(Error::InvalidTokenAt(tokens[*ptr + idx], i));
+                }
+        }
+        *ptr += wanted_token_type.len();
+        Ok(())
 }
 
 fn binary_operator_precedence(operator: Binop) -> usize {

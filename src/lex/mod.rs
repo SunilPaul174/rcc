@@ -26,6 +26,8 @@ pub enum Error {
 pub static INT: &[u8] = b"int";
 pub static VOID: &[u8] = b"void";
 pub static RETURN: &[u8] = b"return";
+pub static IF: &[u8] = b"if";
+pub static ELSE: &[u8] = b"else";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct KeywordHash(pub u32);
@@ -56,6 +58,8 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
         keyword_map.entry(INT).or_insert(TokenType::Int);
         keyword_map.entry(VOID).or_insert(TokenType::Void);
         keyword_map.entry(RETURN).or_insert(TokenType::Return);
+        keyword_map.entry(IF).or_insert(TokenType::If);
+        keyword_map.entry(ELSE).or_insert(TokenType::Else);
 
         let mut left = 0;
         let tot_len = program.state.code.len();
@@ -88,7 +92,9 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
         }
 
         let is_constant = code[start].is_ascii_digit();
-        if !((code[start] == b'_') | code[start].is_ascii_alphabetic() | is_constant) {
+        let is_identifier = code[start].is_ascii_alphabetic() | (code[start] == b'_');
+
+        if !(is_identifier | is_constant) {
                 return None;
         }
 
@@ -96,13 +102,13 @@ pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map:
 
         for &i in &code[start..] {
                 let is_digit = i.is_ascii_digit();
+                let is_alpha = i.is_ascii_alphabetic();
                 if is_constant && !is_digit {
-                        if len == 0 {
+                        if is_alpha {
                                 return None;
                         }
                         break;
                 }
-                let is_alpha = i.is_ascii_alphabetic();
                 if !((i == b'_') | is_alpha | is_digit) {
                         break;
                 }
@@ -158,6 +164,8 @@ fn match_symbol(code: &[u8], start: usize) -> Option<Token> {
                 b'<' => Some(TokenType::LessThan),
                 b'>' => Some(TokenType::MoreThan),
                 b'!' => Some(TokenType::Not),
+                b'?' => Some(TokenType::TernaryOperator),
+                b':' => Some(TokenType::Colon),
                 _ => None,
         } {
                 let Some(curr) = code.get(start + 1) else {

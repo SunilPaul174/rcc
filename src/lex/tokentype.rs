@@ -47,6 +47,11 @@ pub enum TokenType {
         EqualTo,
         Not,
         NotEqualTo,
+        // ?
+        TernaryOperator,
+        Colon,
+        If,
+        Else,
 }
 
 #[derive(Debug, Clone, Copy)]
