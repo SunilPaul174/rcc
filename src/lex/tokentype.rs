@@ -48,7 +48,7 @@ pub enum TokenType {
         Not,
         NotEqualTo,
         // ?
-        TernaryOperator,
+        Ternary,
         Colon,
         If,
         Else,

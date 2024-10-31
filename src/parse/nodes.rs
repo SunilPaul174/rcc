@@ -30,7 +30,14 @@ pub struct Declaration {
 pub enum AStatement {
         Return(AExpression),
         Expr(AExpression),
+        I(If),
         Nul,
+}
+#[derive(Debug, Clone)]
+pub struct If {
+        pub condition: Option<AExpression>,
+        pub then: Box<AStatement>,
+        pub Else: Option<Box<AStatement>>,
 }
 #[derive(Debug, Clone)]
 pub enum AFactor {
@@ -45,6 +52,13 @@ pub enum AExpression {
         F(AFactor),
         BinOp(Binop, Box<AExpression>, Box<AExpression>),
         Assignment(Box<AExpression>, Box<AExpression>),
+        C(Conditional),
+}
+#[derive(Debug, Clone)]
+pub struct Conditional {
+        pub condition: Box<AExpression>,
+        pub True: Box<AExpression>,
+        pub False: Box<AExpression>,
 }
 impl Display for AExpression {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -52,6 +66,7 @@ impl Display for AExpression {
                         AExpression::F(afactor) => write!(f, "{afactor:?}",),
                         AExpression::BinOp(..) => write!(f, "{self:?}"),
                         AExpression::Assignment(left, right) => write!(f, "left: {left:?}, right: {right:?}"),
+                        AExpression::C(Conditional { condition, True, False }) => write!(f, "condition: {condition}, True: {True}, False: {False}"),
                 }
         }
 }
@@ -104,4 +119,5 @@ pub enum Binop {
         MoreThan,
         MoreThanOrEqual,
         Equal,
+        Ternary,
 }

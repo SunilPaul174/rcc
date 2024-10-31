@@ -56,6 +56,7 @@ fn resolve_statement<'b, 'a: 'b>(
                         resolve_exp(code, aexpression, &mut identifier_set, scope)?;
                 }
                 AStatement::Nul => {}
+                AStatement::I(_) => todo!(),
         }
 
         Ok(identifier_set)
@@ -82,6 +83,7 @@ fn resolve_exp(code: &[u8], expr: &AExpression, identifier_set: &mut HashSet<(&[
                         resolve_exp(code, right, identifier_set, scope)?;
                 }
                 AExpression::F(afactor) => resolve_factor(code, afactor, identifier_set, scope)?,
+                AExpression::C(conditional) => todo!(),
         }
         Ok(())
 }

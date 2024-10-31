@@ -164,7 +164,7 @@ fn match_symbol(code: &[u8], start: usize) -> Option<Token> {
                 b'<' => Some(TokenType::LessThan),
                 b'>' => Some(TokenType::MoreThan),
                 b'!' => Some(TokenType::Not),
-                b'?' => Some(TokenType::TernaryOperator),
+                b'?' => Some(TokenType::Ternary),
                 b':' => Some(TokenType::Colon),
                 _ => None,
         } {

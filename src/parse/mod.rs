@@ -1,4 +1,4 @@
-use nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Declaration, Unop};
+use nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, If, Unop};
 use thiserror::Error;
 
 use crate::{
@@ -73,10 +73,11 @@ fn parse_block_item(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<BlockIte
 
 // <declaration> ::= "int" <identifier> [ "=" <exp> ] ";"
 fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declaration, Error> {
-        is_token(tokens, TokenType::Int, ptr)?;
+        assert_eq!(tokens[*ptr].token_type, TokenType::Int);
+        *ptr += 1;
 
         let (start, len) = is_token(tokens, TokenType::Identifier, ptr)?;
-        let identifier = AIdentifier { start, len };
+        let id = AIdentifier { start, len };
         let mut init = None;
 
         if tokens[*ptr].token_type == TokenType::Equal {
@@ -85,10 +86,11 @@ fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declara
         }
 
         is_token(tokens, TokenType::SemiColon, ptr)?;
-        Ok(Declaration { id: identifier, init })
+        Ok(Declaration { id, init })
 }
 
-// <statement> ::= "return" <exp> ";" | <exp> ; | ;
+/* <statement> ::= "return" <exp> ";" | <exp> ; | ;
+| "if" "(" <exp> ")" <statement> [ "else" <statement> ] */
 fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatement, Error> {
         if is_token(tokens, TokenType::Return, ptr).is_ok() {
                 let expr = parse_expression(tokens, ptr, 0)?;
@@ -97,6 +99,22 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
         } else if let Ok(expr) = parse_expression(tokens, ptr, 0) {
                 is_token(tokens, TokenType::SemiColon, ptr)?;
                 Ok(AStatement::Expr(expr))
+        } else if are_tokens(&tokens, &[TokenType::If, TokenType::OpenParen], ptr).is_ok() {
+                let mut condition = None;
+                if let Ok(cond) = parse_expression(tokens, ptr, 0) {
+                        condition = Some(cond)
+                };
+                assert_eq!(tokens[*ptr].token_type, TokenType::CloseParen);
+                *ptr += 1;
+
+                let then = Box::new(parse_statement(tokens, ptr)?);
+
+                let mut Else = None;
+                if is_token(&tokens, TokenType::Else, ptr).is_ok() {
+                        Else = Some(Box::new(parse_statement(tokens, ptr)?));
+                }
+
+                Ok(AStatement::I(If { condition, then, Else }))
         } else {
                 is_token(tokens, TokenType::SemiColon, ptr)?;
                 Ok(AStatement::Nul)
@@ -121,7 +139,7 @@ fn compound_to_normal_operator(binop: Binop) -> Option<Binop> {
         }
 }
 
-// <exp> ::= <factor> | <exp> <binop> <exp>
+// <exp> ::= <factor> | <exp> <binop> <exp> | <exp> "?" <exp> ":" <exp>
 fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
         let mut left = AExpression::F(parse_factor(tokens, ptr)?);
 
@@ -136,6 +154,18 @@ fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: us
                 if operator == Binop::Equal {
                         let right = parse_expression(tokens, ptr, operator_precedence)?;
                         left = AExpression::Assignment(Box::new(left), Box::new(right));
+                } else if operator == Binop::Ternary {
+                        let middle = parse_expression(tokens, ptr, 0)?;
+                        assert_eq!(tokens[*ptr].token_type, TokenType::Colon);
+                        *ptr += 1;
+
+                        let right = parse_expression(tokens, ptr, operator_precedence)?;
+
+                        left = AExpression::C(Conditional {
+                                condition: Box::new(left),
+                                True: Box::new(middle),
+                                False: Box::new(right),
+                        })
                 } else if let Some(act_op) = compound_to_normal_operator(operator) {
                         let left_val_on_right_side_of_compound = left.clone();
 
@@ -167,31 +197,36 @@ fn parse_factor(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFactor, Err
         };
 
         if let Ok(identifier) = parse_identifier(tokens, ptr) {
-                if let Some(incdec) = postfix_unop(tokens[*ptr]) {
+                let mut temp = AFactor::Id(identifier);
+                while let Some(incdec) = postfix_unop(tokens[*ptr]) {
                         *ptr += 1;
-                        return Ok(AFactor::Unop(incdec, Box::new(AFactor::Id(identifier))));
+                        temp = AFactor::Unop(incdec, Box::new(temp));
                 }
 
                 return Ok(AFactor::Id(identifier));
         }
 
         if let Ok(constant) = parse_constant(tokens, ptr) {
-                if let Some(incdec) = postfix_unop(tokens[*ptr]) {
+                let mut temp = AFactor::Constant(constant);
+
+                while let Some(incdec) = postfix_unop(tokens[*ptr]) {
                         *ptr += 1;
-                        return Ok(AFactor::Unop(incdec, Box::new(AFactor::Constant(constant))));
+                        temp = AFactor::Unop(incdec, Box::new(temp));
                 }
-                return Ok(AFactor::Constant(constant));
+
+                return Ok(temp);
         }
 
         if is_token(tokens, TokenType::OpenParen, ptr).is_ok() {
                 if let Ok(expr) = parse_expression(tokens, ptr, 0) {
                         if is_token(tokens, TokenType::CloseParen, ptr).is_ok() {
-                                if let Some(incdec) = postfix_unop(tokens[*ptr]) {
+                                let mut temp = AFactor::Expr(Box::new(expr));
+                                while let Some(incdec) = postfix_unop(tokens[*ptr]) {
                                         *ptr += 1;
-                                        return Ok(AFactor::Unop(incdec, Box::new(AFactor::Expr(Box::new(expr)))));
+                                        temp = AFactor::Unop(incdec, Box::new(temp));
                                 }
 
-                                return Ok(AFactor::Expr(Box::new(expr)));
+                                return Ok(temp);
                         }
                         *ptr -= 1;
                 }
@@ -200,11 +235,13 @@ fn parse_factor(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFactor, Err
 
         if let Some(unop) = parse_unary_operator(tokens, ptr) {
                 if let Ok(factor) = parse_factor(tokens, ptr) {
-                        if let Some(incdec) = postfix_unop(tokens[*ptr]) {
+                        let mut temp = AFactor::Unop(unop, Box::new(factor));
+
+                        while let Some(incdec) = postfix_unop(tokens[*ptr]) {
                                 *ptr += 1;
-                                return Ok(AFactor::Unop(incdec, Box::new(factor)));
+                                temp = AFactor::Unop(incdec, Box::new(temp));
                         }
-                        return Ok(AFactor::Unop(unop, Box::new(factor)));
+                        return Ok(temp);
                 }
                 *ptr -= 1;
         }
@@ -212,7 +249,7 @@ fn parse_factor(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFactor, Err
         Err(Error::InvalidFactorAt(tokens[*ptr]))
 }
 
-// <unop> ::= "-" | "~" | "!"
+// <unop> ::= "-" | "~" | "!" | ++ (post) | -- (post)
 fn parse_unary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Unop> {
         if let Some(unop) = match tokens[*ptr].token_type {
                 TokenType::Minus => Some(Unop::Negate),
@@ -232,7 +269,7 @@ fn parse_unary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Unop> {
 /*
 <binop> ::= "-" | "+" | "*" | "/" | "%" | "<<" | ">>" | "&" | "|" | | "^"
 | "&&" | "||" | "==" | "!=" | "<" | "<=" | ">" | ">="
-| += | -= | *= | /= | %= | &= | ^= | <<= | >>=
+| += | -= | *= | /= | %= | &= | ^= | <<= | >>= | ?
 */
 fn parse_binary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Binop> {
         if let Some(binop) = match tokens[*ptr].token_type {
@@ -267,6 +304,7 @@ fn parse_binary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Binop> {
                 TokenType::BitwiseOrAssign => Some(Binop::BitwiseOrAssign),
                 TokenType::LogicalOrAssign => Some(Binop::LogicalOrAssign),
                 TokenType::BitwiseXOrAssign => Some(Binop::BitwiseXOrAssign),
+                TokenType::Ternary => Some(Binop::Ternary),
                 _ => None,
         } {
                 *ptr += 1;
@@ -325,6 +363,7 @@ fn binary_operator_precedence(operator: Binop) -> usize {
                 Binop::BitwiseOr => 15,
                 Binop::LogicalAnd => 10,
                 Binop::LogicalOr => 5,
+                Binop::Ternary => 3,
                 Binop::Equal => 1,
                 // This is for the compound operators. MAKE VERY VERY FUCKING SURE NOTHING ELSE GETS IN HERE.
                 _ => 0,

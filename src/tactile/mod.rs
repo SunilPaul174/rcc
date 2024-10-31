@@ -146,6 +146,7 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
 
                         Value::Var(*entered)
                 }
+                AExpression::C(conditional) => todo!(),
         }
 }
 
@@ -207,6 +208,7 @@ fn tactile_program(program: AProgram, code: &[u8]) -> TACTILEProgram {
                                         );
                                 }
                                 AStatement::Nul => {}
+                                AStatement::I(_) => todo!(),
                         },
                 }
         }
