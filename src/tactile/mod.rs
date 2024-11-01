@@ -147,6 +147,13 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
                         Value::Var(*entered)
                 }
                 AExpression::C(conditional) => todo!(),
+                AExpression::OpAssignment(binop, left, right) => {
+                        let left = emit_tactile_expr(code, *left, instructions, max_identifier, max_label, named_variable_map, scope);
+                        let right = emit_tactile_expr(code, *right, instructions, max_identifier, max_label, named_variable_map, scope);
+
+                        instructions.push(TACTILEInstruction::Binary(binop, left, right, left));
+                        left
+                }
         }
 }
 

@@ -37,8 +37,8 @@ pub static R11B: &[u8] = b"%r11b";
 pub static PERCENT: u8 = b'%';
 pub static DOLLAR: u8 = b'$';
 
-pub static NOTL: &[u8; 6] = b"\tnotl ";
-pub static NEGL: &[u8; 6] = b"\tnegl ";
+pub static NOTL: &[u8] = b"\tnotl ";
+pub static NEGL: &[u8] = b"\tnegl ";
 pub static ADDL: &[u8] = b"\taddl ";
 pub static SUBL: &[u8] = b"\tsubl ";
 pub static IMULL: &[u8] = b"\timull ";
@@ -48,13 +48,15 @@ pub static ANDL: &[u8] = b"\tandl ";
 pub static ORL: &[u8] = b"\torl ";
 pub static XORL: &[u8] = b"\txorl ";
 pub static CMPL: &[u8] = b"\tcmpl ";
-pub static JMP: &[u8; 5] = b"\tjmp ";
+pub static JMP: &[u8] = b"\tjmp ";
+pub static INC: &[u8] = b"\tinc ";
+pub static DEC: &[u8] = b"\tdec ";
 
-pub static DIVL: &[u8; 7] = b"\tidivl ";
+pub static DIVL: &[u8] = b"\tidivl ";
 
-pub static CDQ: &[u8; 5] = b"\tcdq\n";
+pub static CDQ: &[u8] = b"\tcdq\n";
 
-pub static TEARDOWN: &[u8; 33] = b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n";
+pub static TEARDOWN: &[u8] = b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n";
 
 // we hold the stack in the tactile stage as the number of variables on the stack. However, the all the variables are QWords, so you need to subtract from top of stack
 #[allow(clippy::cast_possible_wrap)]
@@ -122,11 +124,11 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         let op = match unop {
                                 Unop::Negate => NEGL,
                                 Unop::Complement => NOTL,
+                                Unop::IncrementPre => INC,
+                                Unop::IncrementPost => INC,
+                                Unop::DecrementPre => DEC,
+                                Unop::DecrementPost => DEC,
                                 Unop::Not => panic!("not possible; removed in tactile->abstractasm stage."),
-                                Unop::IncrementPre => todo!(),
-                                Unop::IncrementPost => todo!(),
-                                Unop::DecrementPre => todo!(),
-                                Unop::DecrementPost => todo!(),
                         };
                         instructions.extend_from_slice(op);
                         extend_from_operand(operand, instructions, false);

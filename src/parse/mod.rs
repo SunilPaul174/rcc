@@ -1,4 +1,4 @@
-use nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, If, Unop};
+use nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, IfStatement, Unop};
 use thiserror::Error;
 
 use crate::{
@@ -114,35 +114,31 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
                         Else = Some(Box::new(parse_statement(tokens, ptr)?));
                 }
 
-                Ok(AStatement::I(If { condition, then, Else }))
+                Ok(AStatement::I(IfStatement { condition, then, Else }))
         } else {
                 is_token(tokens, TokenType::SemiColon, ptr)?;
                 Ok(AStatement::Nul)
         }
 }
 
-fn compound_to_normal_operator(binop: Binop) -> Option<Binop> {
-        match binop {
-                Binop::AddAssign => Some(Binop::Add),
-                Binop::SubtractAssign => Some(Binop::Subtract),
-                Binop::MultiplyAssign => Some(Binop::Multiply),
-                Binop::DivideAssign => Some(Binop::Divide),
-                Binop::RemainderAssign => Some(Binop::Remainder),
-                Binop::LeftShiftAssign => Some(Binop::LeftShift),
-                Binop::RightShiftAssign => Some(Binop::RightShift),
-                Binop::BitwiseAndAssign => Some(Binop::BitwiseAnd),
-                Binop::LogicalAndAssign => Some(Binop::LogicalAnd),
-                Binop::BitwiseOrAssign => Some(Binop::BitwiseOr),
-                Binop::LogicalOrAssign => Some(Binop::LogicalOr),
-                Binop::BitwiseXOrAssign => Some(Binop::BitwiseXOr),
-                _ => None,
-        }
-}
+pub static ASSIGNBINOP: [Binop; 12] = [
+        Binop::AddAssign,
+        Binop::SubtractAssign,
+        Binop::MultiplyAssign,
+        Binop::DivideAssign,
+        Binop::RemainderAssign,
+        Binop::LeftShiftAssign,
+        Binop::RightShiftAssign,
+        Binop::BitwiseAndAssign,
+        Binop::LogicalAndAssign,
+        Binop::BitwiseOrAssign,
+        Binop::LogicalOrAssign,
+        Binop::BitwiseXOrAssign,
+];
 
 // <exp> ::= <factor> | <exp> <binop> <exp> | <exp> "?" <exp> ":" <exp>
 fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
         let mut left = AExpression::F(parse_factor(tokens, ptr)?);
-
         while let Some(operator) = parse_binary_operator(tokens, ptr) {
                 let operator_precedence = binary_operator_precedence(operator);
 
@@ -154,6 +150,9 @@ fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: us
                 if operator == Binop::Equal {
                         let right = parse_expression(tokens, ptr, operator_precedence)?;
                         left = AExpression::Assignment(Box::new(left), Box::new(right));
+                } else if ASSIGNBINOP.contains(&operator) {
+                        let right = parse_expression(tokens, ptr, operator_precedence)?;
+                        left = AExpression::OpAssignment(operator, Box::new(left), Box::new(right));
                 } else if operator == Binop::Ternary {
                         let middle = parse_expression(tokens, ptr, 0)?;
                         assert_eq!(tokens[*ptr].token_type, TokenType::Colon);
@@ -166,13 +165,6 @@ fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: us
                                 True: Box::new(middle),
                                 False: Box::new(right),
                         })
-                } else if let Some(act_op) = compound_to_normal_operator(operator) {
-                        let left_val_on_right_side_of_compound = left.clone();
-
-                        let mut right = parse_expression(tokens, ptr, operator_precedence)?;
-                        right = AExpression::BinOp(act_op, Box::new(left_val_on_right_side_of_compound), Box::new(right));
-
-                        left = AExpression::Assignment(Box::new(left), Box::new(right));
                 } else {
                         let right = parse_expression(tokens, ptr, operator_precedence + 1)?;
                         left = AExpression::BinOp(operator, Box::new(left), Box::new(right));
@@ -203,7 +195,7 @@ fn parse_factor(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFactor, Err
                         temp = AFactor::Unop(incdec, Box::new(temp));
                 }
 
-                return Ok(AFactor::Id(identifier));
+                return Ok(temp);
         }
 
         if let Ok(constant) = parse_constant(tokens, ptr) {
@@ -255,8 +247,8 @@ fn parse_unary_operator(tokens: &[Token], ptr: &mut usize) -> Option<Unop> {
                 TokenType::Minus => Some(Unop::Negate),
                 TokenType::Tilde => Some(Unop::Complement),
                 TokenType::Not => Some(Unop::Not),
-                TokenType::DoubleMinus => Some(Unop::IncrementPost),
-                TokenType::DoublePlus => Some(Unop::DecrementPost),
+                TokenType::DoubleMinus => Some(Unop::DecrementPost),
+                TokenType::DoublePlus => Some(Unop::IncrementPost),
                 _ => None,
         } {
                 *ptr += 1;
@@ -364,8 +356,18 @@ fn binary_operator_precedence(operator: Binop) -> usize {
                 Binop::LogicalAnd => 10,
                 Binop::LogicalOr => 5,
                 Binop::Ternary => 3,
-                Binop::Equal => 1,
-                // This is for the compound operators. MAKE VERY VERY FUCKING SURE NOTHING ELSE GETS IN HERE.
-                _ => 0,
+                Binop::Equal
+                | Binop::AddAssign
+                | Binop::SubtractAssign
+                | Binop::MultiplyAssign
+                | Binop::DivideAssign
+                | Binop::RemainderAssign
+                | Binop::LeftShiftAssign
+                | Binop::RightShiftAssign
+                | Binop::BitwiseAndAssign
+                | Binop::LogicalAndAssign
+                | Binop::BitwiseOrAssign
+                | Binop::LogicalOrAssign
+                | Binop::BitwiseXOrAssign => 1,
         }
 }

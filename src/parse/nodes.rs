@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::tactile::Identifier;
+
 #[derive(Debug, Clone)]
 pub struct AProgram {
         pub function: AFunction,
@@ -30,11 +32,11 @@ pub struct Declaration {
 pub enum AStatement {
         Return(AExpression),
         Expr(AExpression),
-        I(If),
+        I(IfStatement),
         Nul,
 }
 #[derive(Debug, Clone)]
-pub struct If {
+pub struct IfStatement {
         pub condition: Option<AExpression>,
         pub then: Box<AStatement>,
         pub Else: Option<Box<AStatement>>,
@@ -52,6 +54,7 @@ pub enum AExpression {
         F(AFactor),
         BinOp(Binop, Box<AExpression>, Box<AExpression>),
         Assignment(Box<AExpression>, Box<AExpression>),
+        OpAssignment(Binop, Box<AExpression>, Box<AExpression>),
         C(Conditional),
 }
 #[derive(Debug, Clone)]
@@ -67,6 +70,7 @@ impl Display for AExpression {
                         AExpression::BinOp(..) => write!(f, "{self:?}"),
                         AExpression::Assignment(left, right) => write!(f, "left: {left:?}, right: {right:?}"),
                         AExpression::C(Conditional { condition, True, False }) => write!(f, "condition: {condition}, True: {True}, False: {False}"),
+                        AExpression::OpAssignment(binop, left, right) => write!(f, "operator: {binop:?}, left: {left}, right: {right}"),
                 }
         }
 }
