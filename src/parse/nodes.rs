@@ -1,7 +1,5 @@
 use std::fmt::Display;
 
-use crate::tactile::Identifier;
-
 #[derive(Debug, Clone)]
 pub struct AProgram {
         pub function: AFunction,
@@ -37,7 +35,7 @@ pub enum AStatement {
 }
 #[derive(Debug, Clone)]
 pub struct IfStatement {
-        pub condition: Option<AExpression>,
+        pub condition: AExpression,
         pub then: Box<AStatement>,
         pub Else: Option<Box<AStatement>>,
 }

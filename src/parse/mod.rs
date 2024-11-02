@@ -100,10 +100,7 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
                 is_token(tokens, TokenType::SemiColon, ptr)?;
                 Ok(AStatement::Expr(expr))
         } else if are_tokens(&tokens, &[TokenType::If, TokenType::OpenParen], ptr).is_ok() {
-                let mut condition = None;
-                if let Ok(cond) = parse_expression(tokens, ptr, 0) {
-                        condition = Some(cond)
-                };
+                let condition = parse_expression(tokens, ptr, 0)?;
                 assert_eq!(tokens[*ptr].token_type, TokenType::CloseParen);
                 *ptr += 1;
 

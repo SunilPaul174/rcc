@@ -81,9 +81,7 @@ fn resolve_statement(code: &[u8], statement: &AStatement, variable_map: &mut Has
                 AStatement::Expr(expr) => resolve_exp(code, expr, variable_map, scope),
                 AStatement::I(If) => {
                         let IfStatement { condition, then, Else } = If;
-                        if let Some(cond) = condition {
-                                resolve_exp(code, cond, variable_map, scope)?;
-                        }
+                        resolve_exp(code, condition, variable_map, scope)?;
                         resolve_statement(code, then, variable_map, scope)?;
                         if let Some(Else) = Else {
                                 resolve_statement(code, Else, variable_map, scope)?;

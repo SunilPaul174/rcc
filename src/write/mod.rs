@@ -153,6 +153,14 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                                 ASMBinary::Or => ORL,
                                 ASMBinary::XOr => XORL,
                                 ASMBinary::And => ANDL,
+                                ASMBinary::AddAssign => ADDL,
+                                ASMBinary::SubtractAssign => SUBL,
+                                ASMBinary::MultiplyAssign => IMULL,
+                                ASMBinary::LeftShiftAssign => LEFTSHIFTL,
+                                ASMBinary::RightShiftAssign => RIGHTSHIFTL,
+                                ASMBinary::BitwiseAndAssign => ANDL,
+                                ASMBinary::BitwiseOrAssign => ORL,
+                                ASMBinary::BitwiseXOrAssign => XORL,
                         });
                         extend_from_operand(src, instructions, false);
                         instructions.push(b',');

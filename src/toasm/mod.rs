@@ -57,7 +57,7 @@ impl From<TACTILEFunction> for ASMFunction {
                                 temp_instructions.extend([ASMInstruction::Mov(val_to_op(src), val_to_op(dst)), ASMInstruction::Unary(unop, val_to_op(dst))]);
                         }
 
-                        TACTILEInstruction::Binary(binop, src1, src2, dst) => match binop {
+                        TACTILEInstruction::Binary(binop, src1, src2, mut dst) => match binop {
                                 Binop::Divide => temp_instructions.extend([
                                         ASMInstruction::Mov(val_to_op(src1), Operand::Register(Register::AX)),
                                         ASMInstruction::Cdq,
@@ -101,10 +101,34 @@ impl From<TACTILEFunction> for ASMFunction {
                                         ASMInstruction::SetCC(CondCode::LE, val_to_op(dst)),
                                 ]),
 
-                                _ => temp_instructions.extend([
-                                        ASMInstruction::Mov(val_to_op(src1), val_to_op(dst)),
-                                        ASMInstruction::Binary(ASMBinary::try_from(binop).expect("LogicBUGGG"), val_to_op(src2), val_to_op(dst)),
-                                ]),
+                                _ => {
+                                        let temp = ASMBinary::try_from(binop).expect("LOGICBUGGGG");
+                                        match temp {
+                                                ASMBinary::AddAssign
+                                                | ASMBinary::SubtractAssign
+                                                | ASMBinary::MultiplyAssign
+                                                | ASMBinary::LeftShiftAssign
+                                                | ASMBinary::RightShiftAssign
+                                                | ASMBinary::BitwiseAndAssign
+                                                | ASMBinary::BitwiseOrAssign
+                                                | ASMBinary::BitwiseXOrAssign => {
+                                                        dst = src1;
+                                                }
+
+                                                ASMBinary::Add
+                                                | ASMBinary::Subtract
+                                                | ASMBinary::Multiply
+                                                | ASMBinary::LeftShift
+                                                | ASMBinary::RightShift
+                                                | ASMBinary::Or
+                                                | ASMBinary::XOr
+                                                | ASMBinary::And => {}
+                                        }
+                                        temp_instructions.extend([
+                                                ASMInstruction::Mov(val_to_op(src1), val_to_op(dst)),
+                                                ASMInstruction::Binary(ASMBinary::try_from(binop).expect("LogicBUGGG"), val_to_op(src2), val_to_op(dst)),
+                                        ])
+                                }
                         },
                         TACTILEInstruction::Jump(label) => temp_instructions.push(ASMInstruction::Jmp(label)),
                         TACTILEInstruction::Copy(src, dst) => temp_instructions.push(ASMInstruction::Mov(val_to_op(src), val_to_op(dst))),

@@ -22,7 +22,7 @@ fn main() {
         if res.operation == Operation::Lex {
                 return;
         }
-        let res = dbg!(parse_program(res)).unwrap_or_else(|f| {
+        let res = parse_program(res).unwrap_or_else(|f| {
                 eprintln!("{f}");
                 exit(1);
         });
