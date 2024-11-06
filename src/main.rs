@@ -5,9 +5,9 @@ use rcc::{
         lex::lex,
         parse::parse_program,
         semanalysis::analyze,
-        // tactile::TACTILE,
-        // toasm::asm,
-        // write::write,
+        tactile::TACTILE,
+        toasm::asm,
+        write::write,
 };
 
 fn main() {
@@ -36,14 +36,14 @@ fn main() {
         if res.operation == Operation::Validate {
                 return;
         }
-        // let res = TACTILE(res);
-        // if res.operation == Operation::ParseToTACTILETree {
-        //         return;
-        // }
-        // let res = asm(res);
-        // if res.operation == Operation::ParseToASMTree {
-        //         return;
-        // }
-        // let res = write(res);
-        // println!("{}", String::from_utf8(res.state.code).unwrap());
+        let res = TACTILE(res);
+        if res.operation == Operation::ParseToTACTILETree {
+                return;
+        }
+        let res = asm(res);
+        if res.operation == Operation::ParseToASMTree {
+                return;
+        }
+        let res = write(res);
+        println!("{}", String::from_utf8(res.state.code).unwrap());
 }
