@@ -28,12 +28,19 @@ pub static VOID: &[u8] = b"void";
 pub static RETURN: &[u8] = b"return";
 pub static IF: &[u8] = b"if";
 pub static ELSE: &[u8] = b"else";
+pub static DO: &[u8] = b"do";
+pub static WHILE: &[u8] = b"while";
+pub static FOR: &[u8] = b"for";
+pub static BREAK: &[u8] = b"break";
+pub static CONTINUE: &[u8] = b"continue";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct KeywordHash(pub u32);
 
 impl Hasher for KeywordHash {
-        fn finish(&self) -> u64 { self.0 as u64 }
+        fn finish(&self) -> u64 {
+                self.0 as u64
+        }
 
         fn write(&mut self, bytes: &[u8]) {
                 let len = bytes.len();
@@ -48,7 +55,9 @@ impl Hasher for KeywordHash {
 impl BuildHasher for KeywordHash {
         type Hasher = Self;
 
-        fn build_hasher(&self) -> Self::Hasher { *self }
+        fn build_hasher(&self) -> Self::Hasher {
+                *self
+        }
 }
 
 type KeywordHasher = BuildHasherDefault<KeywordHash>;
@@ -60,6 +69,11 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
         keyword_map.entry(RETURN).or_insert(TokenType::Return);
         keyword_map.entry(IF).or_insert(TokenType::If);
         keyword_map.entry(ELSE).or_insert(TokenType::Else);
+        keyword_map.entry(DO).or_insert(TokenType::Do);
+        keyword_map.entry(WHILE).or_insert(TokenType::While);
+        keyword_map.entry(FOR).or_insert(TokenType::For);
+        keyword_map.entry(BREAK).or_insert(TokenType::Break);
+        keyword_map.entry(CONTINUE).or_insert(TokenType::Continue);
 
         let mut left = 0;
         let tot_len = program.state.code.len();
