@@ -8,8 +8,11 @@ pub struct AProgram {
 #[derive(Debug, Clone)]
 pub struct AFunction {
         pub identifier: AIdentifier,
-        pub function_body: Vec<BlockItem>,
+        pub function_body: ABlock,
 }
+
+#[derive(Debug, Clone)]
+pub struct ABlock(pub Vec<BlockItem>);
 
 #[derive(Debug, Clone, Copy)]
 pub struct AIdentifier {
@@ -31,6 +34,7 @@ pub enum AStatement {
         Return(AExpression),
         Expr(AExpression),
         I(IfStatement),
+        Compound(ABlock),
         Nul,
 }
 #[derive(Debug, Clone)]

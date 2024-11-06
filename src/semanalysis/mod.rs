@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
         parse::{
-                nodes::{AExpression, AFactor, AIdentifier, AProgram, AStatement, BlockItem, Conditional, Declaration, IfStatement, Unop},
+                nodes::{ABlock, AExpression, AFactor, AIdentifier, AProgram, AStatement, BlockItem, Conditional, Declaration, IfStatement, Unop},
                 Parsed,
         },
         tactile::Identifier,
@@ -34,14 +34,14 @@ pub fn analyze(value: Program<Parsed>) -> Result<Program<SemanticallyAnalyzed>, 
         let program = value.state.program;
 
         let mut global_max_identifier = 0;
-        let scope = 0;
-
+        // let mut global_max_label = 0;
         let mut variable_map = HashMap::new();
+        let mut max_scope = 0;
 
-        for i in program.function.function_body.iter() {
+        for i in &program.function.function_body.0 {
                 match i {
-                        BlockItem::D(declaration) => resolve_declaration(&code, declaration, &mut variable_map, &mut global_max_identifier, scope)?,
-                        BlockItem::S(astatement) => resolve_statement(&code, astatement, &mut variable_map, scope)?,
+                        BlockItem::D(declaration) => resolve_declaration(&code, declaration, &mut variable_map, &mut global_max_identifier, 0, &mut max_scope)?,
+                        BlockItem::S(astatement) => resolve_statement(&code, astatement, &mut variable_map, &mut global_max_identifier, 0, &mut max_scope)?,
                 }
         }
 
@@ -57,6 +57,7 @@ fn resolve_declaration<'b, 'a: 'b>(
         variable_map: &mut HashMap<(&'b [u8], usize), Identifier>,
         global_max_identifier: &mut usize,
         scope: usize,
+        max_scope: &mut usize,
 ) -> Result<(), Error> {
         let AIdentifier { start, len } = declaration.id;
         let name = &code[start..start + len];
@@ -75,21 +76,42 @@ fn resolve_declaration<'b, 'a: 'b>(
         Ok(())
 }
 
-fn resolve_statement(code: &[u8], statement: &AStatement, variable_map: &mut HashMap<(&[u8], usize), Identifier>, scope: usize) -> Result<(), Error> {
+fn resolve_statement<'b, 'a: 'b>(
+        code: &'a [u8],
+        statement: &AStatement,
+        variable_map: &mut HashMap<(&'b [u8], usize), Identifier>,
+        max_identifier: &mut usize,
+        scope: usize,
+        max_scope: &mut usize,
+) -> Result<(), Error> {
         match statement {
                 AStatement::Return(expr) => resolve_exp(code, expr, variable_map, scope),
                 AStatement::Expr(expr) => resolve_exp(code, expr, variable_map, scope),
-                AStatement::I(If) => {
-                        let IfStatement { condition, then, Else } = If;
+                AStatement::I(if_statement) => {
+                        let IfStatement { condition, then, Else } = if_statement;
                         resolve_exp(code, condition, variable_map, scope)?;
-                        resolve_statement(code, then, variable_map, scope)?;
-                        if let Some(Else) = Else {
-                                resolve_statement(code, Else, variable_map, scope)?;
+                        resolve_statement(code, then, variable_map, max_identifier, scope, max_scope)?;
+                        if let Some(else_statement) = Else {
+                                resolve_statement(code, else_statement, variable_map, max_identifier, scope, max_scope)?;
                         }
 
                         Ok(())
                 }
                 AStatement::Nul => Ok(()),
+                AStatement::Compound(ABlock(block)) => {
+                        let inner_scope = scope + 1;
+
+                        for i in block {
+                                match i {
+                                        BlockItem::D(declaration) => resolve_declaration(code, declaration, variable_map, max_identifier, inner_scope, max_scope)?,
+                                        BlockItem::S(astatement) => resolve_statement(code, astatement, variable_map, max_identifier, inner_scope, max_scope)?,
+                                }
+                        }
+
+                        variable_map.retain(|(_, scope), _| scope != &inner_scope);
+
+                        Ok(())
+                }
         }
 }
 
@@ -126,13 +148,13 @@ fn is_valid_lvalue_assignment(code: &[u8], left: &AExpression, variable_map: &mu
                 AExpression::F(afactor) => match afactor {
                         AFactor::Expr(expr) => is_valid_lvalue_assignment(code, expr, variable_map, scope),
                         AFactor::Id(aidentifier) => variable_exists(code, aidentifier, variable_map, scope),
-                        AFactor::Constant(..) | AFactor::Unop(..) => return Err(Error::InvalidLValueExpr(left.clone())),
+                        AFactor::Constant(..) | AFactor::Unop(..) => Err(Error::InvalidLValueExpr(left.clone())),
                 },
                 AExpression::Assignment(left, right) => {
                         resolve_exp(code, left, variable_map, scope)?;
                         resolve_exp(code, right, variable_map, scope)
                 }
-                AExpression::C(_) | AExpression::BinOp(..) | AExpression::OpAssignment(..) => return Err(Error::InvalidLValueExpr(left.clone())),
+                AExpression::C(_) | AExpression::BinOp(..) | AExpression::OpAssignment(..) => Err(Error::InvalidLValueExpr(left.clone())),
         }
 }
 
@@ -176,9 +198,11 @@ fn variable_exists(code: &[u8], aidentifier: &AIdentifier, variable_map: &mut Ha
         let &AIdentifier { start, len } = aidentifier;
         let name = &code[start..start + len];
 
-        if !variable_map.get(&(name, scope)).is_some() {
-                return Err(Error::UndeclaredVariable(String::from_utf8(name.to_vec()).unwrap(), start));
+        for i in 0..=scope {
+                if variable_map.get(&(name, i)).is_some() {
+                        return Ok(());
+                }
         }
 
-        Ok(())
+        Err(Error::UndeclaredVariable(String::from_utf8(name.to_vec()).unwrap(), start))
 }

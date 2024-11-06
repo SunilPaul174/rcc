@@ -1,4 +1,4 @@
-use nodes::{AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, IfStatement, Unop};
+use nodes::{ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, IfStatement, Unop};
 use thiserror::Error;
 
 use crate::{
@@ -48,19 +48,24 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Err
         })
 }
 
-// <function> ::= "int" <identifier> "(" "void" ")" "{" { <block_item> } "}"
+// <function> ::= "int" <identifier> "(" "void" ")" <block>
 fn parse_function(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFunction, Error> {
         is_token(tokens, TokenType::Int, ptr)?;
         let identifier = parse_identifier(tokens, ptr)?;
-        are_tokens(tokens, &[TokenType::OpenParen, TokenType::Void, TokenType::CloseParen, TokenType::OpenBrace], ptr)?;
-
-        let mut function_body = vec![];
-        while tokens[*ptr].token_type != TokenType::CloseBrace {
-                function_body.push(parse_block_item(tokens, ptr)?);
-        }
-        *ptr += 1;
+        are_tokens(tokens, &[TokenType::OpenParen, TokenType::Void, TokenType::CloseParen], ptr)?;
+        let function_body = parse_block(tokens, ptr)?;
 
         Ok(AFunction { identifier, function_body })
+}
+// <block> ::= "{" { <block-item> } "}"
+fn parse_block(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<ABlock, Error> {
+        is_token(tokens, TokenType::OpenBrace, ptr)?;
+        let mut block = vec![];
+        while tokens[*ptr].token_type != TokenType::CloseBrace {
+                block.push(parse_block_item(tokens, ptr)?);
+        }
+        *ptr += 1;
+        Ok(ABlock(block))
 }
 
 // <block-item> ::= <statement> | <declaration>
@@ -89,8 +94,13 @@ fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declara
         Ok(Declaration { id, init })
 }
 
-/* <statement> ::= "return" <exp> ";" | <exp> ; | ;
-| "if" "(" <exp> ")" <statement> [ "else" <statement> ] */
+/* <statement> ::=
+"return" <exp> ";"
+| <exp> ;
+| ;
+| "if" "(" <exp> ")" <statement> [ "else" <statement> ]
+| <block>
+*/
 fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatement, Error> {
         if is_token(tokens, TokenType::Return, ptr).is_ok() {
                 let expr = parse_expression(tokens, ptr, 0)?;
@@ -99,7 +109,7 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
         } else if let Ok(expr) = parse_expression(tokens, ptr, 0) {
                 is_token(tokens, TokenType::SemiColon, ptr)?;
                 Ok(AStatement::Expr(expr))
-        } else if are_tokens(&tokens, &[TokenType::If, TokenType::OpenParen], ptr).is_ok() {
+        } else if are_tokens(tokens, &[TokenType::If, TokenType::OpenParen], ptr).is_ok() {
                 let condition = parse_expression(tokens, ptr, 0)?;
                 assert_eq!(tokens[*ptr].token_type, TokenType::CloseParen);
                 *ptr += 1;
@@ -107,11 +117,13 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
                 let then = Box::new(parse_statement(tokens, ptr)?);
 
                 let mut Else = None;
-                if is_token(&tokens, TokenType::Else, ptr).is_ok() {
+                if is_token(tokens, TokenType::Else, ptr).is_ok() {
                         Else = Some(Box::new(parse_statement(tokens, ptr)?));
                 }
 
                 Ok(AStatement::I(IfStatement { condition, then, Else }))
+        } else if let Ok(block) = parse_block(tokens, ptr) {
+                Ok(AStatement::Compound(block))
         } else {
                 is_token(tokens, TokenType::SemiColon, ptr)?;
                 Ok(AStatement::Nul)
@@ -152,8 +164,7 @@ fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: us
                         left = AExpression::OpAssignment(operator, Box::new(left), Box::new(right));
                 } else if operator == Binop::Ternary {
                         let middle = parse_expression(tokens, ptr, 0)?;
-                        assert_eq!(tokens[*ptr].token_type, TokenType::Colon);
-                        *ptr += 1;
+                        is_token(tokens, TokenType::Colon, ptr)?;
 
                         let right = parse_expression(tokens, ptr, operator_precedence)?;
 
@@ -173,16 +184,10 @@ fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: us
 
 // <factor> ::= <identifier> | <int> | "(" <exp> ")" | <unop> <factor> | <factor> <unop> (postfix in/decrement)
 fn parse_factor(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFactor, Error> {
-        let postfix_unop = |f: Token| {
-                if let Some(incdec) = match f.token_type {
-                        TokenType::DoubleMinus => Some(Unop::DecrementPost),
-                        TokenType::DoublePlus => Some(Unop::IncrementPost),
-                        _ => None,
-                } {
-                        Some(incdec)
-                } else {
-                        None
-                }
+        let postfix_unop = |f: Token| match f.token_type {
+                TokenType::DoubleMinus => Some(Unop::DecrementPost),
+                TokenType::DoublePlus => Some(Unop::IncrementPost),
+                _ => None,
         };
 
         if let Ok(identifier) = parse_identifier(tokens, ptr) {
