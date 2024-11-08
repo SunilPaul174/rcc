@@ -8,7 +8,7 @@ use initialize::Operation;
 pub mod initialize;
 pub mod lex;
 pub mod parse;
-pub mod semanalysis;
+pub mod semantic_analysis;
 pub mod tactile;
 pub mod toasm;
 pub mod write;

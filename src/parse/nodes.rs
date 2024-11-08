@@ -36,7 +36,28 @@ pub enum AStatement {
         I(IfStatement),
         Compound(ABlock),
         Nul,
+        Break(LoopLabel),
+        Continue(LoopLabel),
+        While(AExpression, Box<AStatement>, LoopLabel),
+        DoWhile(Box<AStatement>, AExpression, LoopLabel),
+        F(Box<For>, LoopLabel),
 }
+#[derive(Debug, Clone, Copy)]
+pub struct LoopLabel(pub usize);
+
+#[derive(Debug, Clone)]
+pub struct For {
+        pub init: ForInit,
+        pub condition: Option<AExpression>,
+        pub post: Option<AExpression>,
+        pub body: AStatement,
+}
+#[derive(Debug, Clone)]
+pub enum ForInit {
+        D(Declaration),
+        E(Option<AExpression>),
+}
+
 #[derive(Debug, Clone)]
 pub struct IfStatement {
         pub condition: AExpression,

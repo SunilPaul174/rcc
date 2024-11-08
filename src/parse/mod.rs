@@ -1,4 +1,7 @@
-use nodes::{ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, IfStatement, Unop};
+use nodes::{
+        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, For, ForInit, IfStatement,
+        LoopLabel, Unop,
+};
 use thiserror::Error;
 
 use crate::{
@@ -78,8 +81,7 @@ fn parse_block_item(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<BlockIte
 
 // <declaration> ::= "int" <identifier> [ "=" <exp> ] ";"
 fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declaration, Error> {
-        assert_eq!(tokens[*ptr].token_type, TokenType::Int);
-        *ptr += 1;
+        is_token(tokens, TokenType::Int, ptr)?;
 
         let (start, len) = is_token(tokens, TokenType::Identifier, ptr)?;
         let id = AIdentifier { start, len };
@@ -94,12 +96,16 @@ fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declara
         Ok(Declaration { id, init })
 }
 
-/* <statement> ::=
-"return" <exp> ";"
-| <exp> ;
-| ;
+/* <statement> ::= "return" <exp> ";"
+| <exp> ";"
 | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
 | <block>
+| "break" ";"
+| "continue" ";"
+| "while" "(" <exp> ")" <statement>
+| "do" <statement> "while" "(" <exp> ")" ";"
+| "for" "(" <for-init> [ <exp> ] ";" [ <exp> ] ")" <statement>
+| ";"
 */
 fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatement, Error> {
         if is_token(tokens, TokenType::Return, ptr).is_ok() {
@@ -111,8 +117,7 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
                 Ok(AStatement::Expr(expr))
         } else if are_tokens(tokens, &[TokenType::If, TokenType::OpenParen], ptr).is_ok() {
                 let condition = parse_expression(tokens, ptr, 0)?;
-                assert_eq!(tokens[*ptr].token_type, TokenType::CloseParen);
-                *ptr += 1;
+                is_token(tokens, TokenType::CloseParen, ptr)?;
 
                 let then = Box::new(parse_statement(tokens, ptr)?);
 
@@ -124,10 +129,67 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
                 Ok(AStatement::I(IfStatement { condition, then, Else }))
         } else if let Ok(block) = parse_block(tokens, ptr) {
                 Ok(AStatement::Compound(block))
+        } else if are_tokens(tokens, &[TokenType::Break, TokenType::SemiColon], ptr).is_ok() {
+                Ok(AStatement::Break(LoopLabel(0)))
+        } else if are_tokens(tokens, &[TokenType::Continue, TokenType::SemiColon], ptr).is_ok() {
+                Ok(AStatement::Continue(LoopLabel(0)))
+        // | "while" "(" <exp> ")" <statement>
+        } else if are_tokens(tokens, &[TokenType::While, TokenType::OpenParen], ptr).is_ok() {
+                let expr = parse_expression(tokens, ptr, 0)?;
+                is_token(tokens, TokenType::CloseParen, ptr)?;
+                let statement = parse_statement(tokens, ptr)?;
+
+                Ok(AStatement::While(expr, Box::new(statement), LoopLabel(0)))
+        // | "do" <statement> "while" "(" <exp> ")" ";"
+        } else if is_token(tokens, TokenType::Do, ptr).is_ok() {
+                let statement = parse_statement(tokens, ptr)?;
+                are_tokens(tokens, &[TokenType::While, TokenType::OpenParen], ptr)?;
+                let expr = parse_expression(tokens, ptr, 0)?;
+                are_tokens(tokens, &[TokenType::CloseParen, TokenType::SemiColon], ptr)?;
+
+                Ok(AStatement::DoWhile(Box::new(statement), expr, LoopLabel(0)))
+        // | "for" "(" <for-init> [ <exp> ] ";" [ <exp> ] ")" <statement>
+        } else if are_tokens(tokens, &[TokenType::For, TokenType::OpenParen], ptr).is_ok() {
+                let init = parse_for_init(tokens, ptr)?;
+
+                let (mut post, mut condition) = (None, None);
+                if let Ok(expr) = parse_expression(tokens, ptr, 0) {
+                        condition = Some(expr);
+                }
+                is_token(tokens, TokenType::SemiColon, ptr)?;
+                if let Ok(expr) = parse_expression(tokens, ptr, 0) {
+                        post = Some(expr);
+                }
+                is_token(tokens, TokenType::CloseParen, ptr)?;
+                let statement = parse_statement(tokens, ptr)?;
+
+                Ok(AStatement::F(
+                        Box::new(For {
+                                init,
+                                condition,
+                                post,
+                                body: statement,
+                        }),
+                        LoopLabel(0),
+                ))
         } else {
                 is_token(tokens, TokenType::SemiColon, ptr)?;
                 Ok(AStatement::Nul)
         }
+}
+
+// <for-init> ::= <declaration> | [ <exp> ] ";"
+fn parse_for_init(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<ForInit, Error> {
+        if let Ok(declaration) = parse_declaration(tokens, ptr) {
+                return Ok(ForInit::D(declaration));
+        }
+        let mut expression = None;
+        if let Ok(expr) = parse_expression(tokens, ptr, 0) {
+                expression = Some(expr);
+        }
+        is_token(tokens, TokenType::SemiColon, ptr)?;
+
+        Ok(ForInit::E(expression))
 }
 
 pub static ASSIGNBINOP: [Binop; 12] = [

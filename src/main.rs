@@ -4,7 +4,7 @@ use rcc::{
         initialize::{initialize, Operation},
         lex::lex,
         parse::parse_program,
-        semanalysis::analyze,
+        semantic_analysis::analyze,
         tactile::TACTILE,
         toasm::asm,
         write::write,
