@@ -33,15 +33,18 @@ pub enum Error {
         BreakOutsideLoop(AStatement),
 }
 
-pub fn analyze(mut program: Program<Parsed>) -> Result<Program<SemanticallyAnalyzed>, Error> {
+pub fn analyze(mut program: Program<Parsed>) -> Result<(Program<SemanticallyAnalyzed>, usize), Error> {
         () = resolve_variables(&program.state.code, &program.state.program)?;
-        () = label_loops(&mut program)?;
+        let max_label = label_loops(&mut program)?;
 
-        Ok(Program {
-                operation: program.operation,
-                state: SemanticallyAnalyzed {
-                        code: program.state.code,
-                        program: program.state.program,
+        Ok((
+                Program {
+                        operation: program.operation,
+                        state: SemanticallyAnalyzed {
+                                code: program.state.code,
+                                program: program.state.program,
+                        },
                 },
-        })
+                max_label,
+        ))
 }

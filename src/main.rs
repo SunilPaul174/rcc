@@ -29,14 +29,14 @@ fn main() {
         if res.operation == Operation::ParseToCTree {
                 return;
         }
-        let res = analyze(res).unwrap_or_else(|f| {
+        let (res, max_label) = analyze(res).unwrap_or_else(|f| {
                 eprintln!("{f}");
                 exit(1);
         });
         if res.operation == Operation::Validate {
                 return;
         }
-        let res = TACTILE(res);
+        let res = TACTILE(res, max_label);
         if res.operation == Operation::ParseToTACTILETree {
                 return;
         }

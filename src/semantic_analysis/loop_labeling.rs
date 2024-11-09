@@ -8,7 +8,7 @@ use crate::{
 
 use super::Error;
 
-pub(super) fn label_loops(program: &mut Program<Parsed>) -> Result<(), Error> {
+pub(super) fn label_loops(program: &mut Program<Parsed>) -> Result<usize, Error> {
         let mut max_label = LoopLabel(0);
         for i in &mut program.state.program.function.function_body.0 {
                 match i {
@@ -17,7 +17,7 @@ pub(super) fn label_loops(program: &mut Program<Parsed>) -> Result<(), Error> {
                 }
         }
 
-        Ok(())
+        Ok(max_label.0)
 }
 
 fn label_statement(statement: &mut AStatement, curr_label: Option<LoopLabel>, max_label: &mut LoopLabel) -> Result<(), Error> {
