@@ -3,7 +3,7 @@ use crate::{
         tactile::{Constant, TACTILEFunction, TACTILEInstruction, Value, TACTILE},
         Program, State,
 };
-use nodes::{ASMBinary, ASMFunction, ASMInstruction, ASMProgram, CondCode, Operand, Register};
+use nodes::{ASMBinary, ASMFunction, ASMInstruction, ASMProgram, ASMUnary, CondCode, Operand, Register};
 
 pub mod nodes;
 
@@ -44,19 +44,19 @@ impl From<TACTILEFunction> for ASMFunction {
                 temp_instructions.push(ASMInstruction::AllocateStack(0));
 
                 let from_tactile = |&value| match value {
-                        TACTILEInstruction::Return(val) => {
-                                temp_instructions.extend([ASMInstruction::Mov(val_to_op(val), Operand::Register(Register::AX)), ASMInstruction::Ret])
-                        }
+                        TACTILEInstruction::Return(val) => temp_instructions.extend([ASMInstruction::Mov(val_to_op(val), Operand::Register(Register::AX)), ASMInstruction::Ret]),
                         TACTILEInstruction::Unary(unop, src, dst) => {
-                                if unop == Unop::Not {
-                                        temp_instructions.extend([
-                                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(src)),
-                                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(dst)),
-                                                ASMInstruction::SetCC(CondCode::E, val_to_op(dst)),
-                                        ]);
-                                        return;
-                                }
-                                temp_instructions.extend([ASMInstruction::Mov(val_to_op(src), val_to_op(dst)), ASMInstruction::Unary(unop, val_to_op(dst))]);
+                                let op = match unop {
+                                        Unop::Negate => ASMUnary::Negate,
+                                        Unop::Complement => ASMUnary::Complement,
+                                        Unop::Not => ASMUnary::Not,
+                                        Unop::IncrementPre => ASMUnary::Increment,
+                                        Unop::IncrementPost => ASMUnary::Increment,
+                                        Unop::DecrementPre => ASMUnary::Decrement,
+                                        Unop::DecrementPost => ASMUnary::Decrement,
+                                };
+
+                                temp_instructions.extend([ASMInstruction::Mov(val_to_op(src), val_to_op(dst)), ASMInstruction::Unary(op, val_to_op(dst))]);
                         }
 
                         TACTILEInstruction::Binary(binop, src1, src2, mut dst) => match binop {
@@ -91,33 +91,33 @@ impl From<TACTILEFunction> for ASMFunction {
                                         ])
                                 }
                                 Binop::MoreThan => temp_instructions.extend([
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::G, val_to_op(dst)),
                                 ]),
                                 Binop::MoreThanOrEqual => temp_instructions.extend([
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::GE, val_to_op(dst)),
                                 ]),
                                 Binop::EqualTo => temp_instructions.extend([
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::E, val_to_op(dst)),
                                 ]),
                                 Binop::NotEqualTo => temp_instructions.extend([
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::NE, val_to_op(dst)),
                                 ]),
                                 Binop::LessThan => temp_instructions.extend([
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::L, val_to_op(dst)),
                                 ]),
                                 Binop::LessThanOrEqual => temp_instructions.extend([
+                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::LE, val_to_op(dst)),
                                 ]),
                                 _ => {
@@ -151,15 +151,13 @@ impl From<TACTILEFunction> for ASMFunction {
                         },
                         TACTILEInstruction::Jump(label) => temp_instructions.push(ASMInstruction::Jmp(label)),
                         TACTILEInstruction::Copy(src, dst) => temp_instructions.push(ASMInstruction::Mov(val_to_op(src), val_to_op(dst))),
-                        TACTILEInstruction::Label(label) => temp_instructions.push(ASMInstruction::Label(label)),
-                        TACTILEInstruction::JumpIfZero(value, label) => temp_instructions.extend([
-                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)),
-                                ASMInstruction::JmpCC(CondCode::E, label),
-                        ]),
-                        TACTILEInstruction::JumpIfNotZero(value, label) => temp_instructions.extend([
-                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)),
-                                ASMInstruction::JmpCC(CondCode::NE, label),
-                        ]),
+                        TACTILEInstruction::L(label) => temp_instructions.push(ASMInstruction::Label(label)),
+                        TACTILEInstruction::JumpIfZero(value, label) => {
+                                temp_instructions.extend([ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)), ASMInstruction::JmpCC(CondCode::E, label)])
+                        }
+                        TACTILEInstruction::JumpIfNotZero(value, label) => {
+                                temp_instructions.extend([ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)), ASMInstruction::JmpCC(CondCode::NE, label)])
+                        }
                 };
 
                 let mut stack_max: usize = 0;
@@ -215,28 +213,26 @@ fn last_pass(i: ASMInstruction, instructions: &mut Vec<ASMInstruction>) {
 
 fn pseudo_pass(value: ASMInstruction, stack_max: &mut usize) -> ASMInstruction {
         match value {
-                ASMInstruction::Mov(src, dst) => {
-                        let src = pseudo_to_stack_operand(src, stack_max);
-                        let dst = pseudo_to_stack_operand(dst, stack_max);
+                ASMInstruction::Mov(left, right) => {
+                        let left = pseudo_to_stack_operand(left, stack_max);
+                        let right = pseudo_to_stack_operand(right, stack_max);
 
-                        ASMInstruction::Mov(src, dst)
+                        ASMInstruction::Mov(left, right)
                 }
-                ASMInstruction::Cmp(src, dst) => {
-                        let src = pseudo_to_stack_operand(src, stack_max);
-                        let dst = pseudo_to_stack_operand(dst, stack_max);
+                ASMInstruction::Cmp(left, right) => {
+                        let left = pseudo_to_stack_operand(left, stack_max);
+                        let right = pseudo_to_stack_operand(right, stack_max);
 
-                        ASMInstruction::Cmp(src, dst)
+                        ASMInstruction::Cmp(left, right)
                 }
-                ASMInstruction::SetCC(src, dst) => {
-                        let dst = pseudo_to_stack_operand(dst, stack_max);
+                ASMInstruction::SetCC(left, right) => {
+                        let right = pseudo_to_stack_operand(right, stack_max);
 
-                        ASMInstruction::SetCC(src, dst)
+                        ASMInstruction::SetCC(left, right)
                 }
                 ASMInstruction::Unary(unop, operand) => ASMInstruction::Unary(unop, pseudo_to_stack_operand(operand, stack_max)),
-                ASMInstruction::Binary(binop, src, dst) => {
-                        ASMInstruction::Binary(binop, pseudo_to_stack_operand(src, stack_max), pseudo_to_stack_operand(dst, stack_max))
-                }
-                ASMInstruction::IDiv(src) => ASMInstruction::IDiv(pseudo_to_stack_operand(src, stack_max)),
+                ASMInstruction::Binary(binop, left, right) => ASMInstruction::Binary(binop, pseudo_to_stack_operand(left, stack_max), pseudo_to_stack_operand(right, stack_max)),
+                ASMInstruction::IDiv(left) => ASMInstruction::IDiv(pseudo_to_stack_operand(left, stack_max)),
                 _ => value,
         }
 }

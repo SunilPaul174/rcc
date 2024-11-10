@@ -2,7 +2,7 @@ use crate::{
         parse::nodes::{AConstant, AIdentifier, Unop},
         tactile::Constant,
         toasm::{
-                nodes::{ASMBinary, ASMFunction, ASMInstruction, CondCode, Operand, Register},
+                nodes::{ASMBinary, ASMFunction, ASMInstruction, ASMUnary, CondCode, Operand, Register},
                 Compiled,
         },
         Program, State,
@@ -49,8 +49,8 @@ pub static ORL: &[u8] = b"\torl ";
 pub static XORL: &[u8] = b"\txorl ";
 pub static CMPL: &[u8] = b"\tcmpl ";
 pub static JMP: &[u8] = b"\tjmp ";
-pub static INC: &[u8] = b"\tinc ";
-pub static DEC: &[u8] = b"\tdec ";
+pub static INCL: &[u8] = b"\tincl ";
+pub static DECL: &[u8] = b"\tdecl ";
 
 pub static DIVL: &[u8] = b"\tidivl ";
 
@@ -61,9 +61,7 @@ pub static TEARDOWN: &[u8] = b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n";
 // we hold the stack in the tactile stage as the number of variables on the stack. However, the all the variables are QWords, so you need to subtract from top of stack
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_possible_truncation)]
-fn the_real_stack(val: usize) -> i32 {
-        -((val as i32) * 4)
-}
+fn the_real_stack(val: usize) -> i32 { -((val as i32) * 4) }
 
 fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
         let mut instructions = Vec::new();
@@ -124,13 +122,11 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                 }
                 ASMInstruction::Unary(unop, operand) => {
                         let op = match unop {
-                                Unop::Negate => NEGL,
-                                Unop::Complement => NOTL,
-                                Unop::IncrementPre => INC,
-                                Unop::IncrementPost => INC,
-                                Unop::DecrementPre => DEC,
-                                Unop::DecrementPost => DEC,
-                                Unop::Not => panic!("not possible; removed in tactile->abstractasm stage."),
+                                ASMUnary::Increment => INCL,
+                                ASMUnary::Decrement => DECL,
+                                ASMUnary::Not => NOTL,
+                                ASMUnary::Negate => NEGL,
+                                ASMUnary::Complement => NOTL,
                         };
                         instructions.extend_from_slice(op);
                         extend_from_operand(operand, instructions, false);

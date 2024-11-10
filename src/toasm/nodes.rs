@@ -4,9 +4,7 @@ use crate::{
 };
 
 impl From<Constant> for Operand {
-        fn from(value: Constant) -> Self {
-                Operand::Imm(value)
-        }
+        fn from(value: Constant) -> Self { Operand::Imm(value) }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -27,16 +25,14 @@ pub enum Register {
         R11,
 }
 impl From<Register> for Operand {
-        fn from(value: Register) -> Self {
-                Operand::Register(value)
-        }
+        fn from(value: Register) -> Self { Operand::Register(value) }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ASMInstruction {
         // src, dst
         Mov(Operand, Operand),
-        Unary(Unop, Operand),
+        Unary(ASMUnary, Operand),
         AllocateStack(usize),
         Cmp(Operand, Operand),
         Binary(ASMBinary, Operand, Operand),
@@ -78,6 +74,14 @@ pub enum ASMBinary {
         BitwiseOrAssign,
         BitwiseXOrAssign,
 }
+#[derive(Debug, Clone, Copy)]
+pub enum ASMUnary {
+        Increment,
+        Decrement,
+        Not,
+        Negate,
+        Complement,
+}
 
 #[derive(Debug)]
 pub struct NotASMBinary;
@@ -102,12 +106,6 @@ impl TryFrom<Binop> for ASMBinary {
                         Binop::BitwiseAndAssign => Ok(ASMBinary::BitwiseAndAssign),
                         Binop::BitwiseOrAssign => Ok(ASMBinary::BitwiseOrAssign),
                         Binop::BitwiseXOrAssign => Ok(ASMBinary::BitwiseXOrAssign),
-                        // Binop::DivideAssign => todo!(),
-                        // Binop::RemainderAssign => todo!(),
-                        // Binop::LogicalAnd => todo!(),
-                        // Binop::LogicalAndAssign => todo!(),
-                        // Binop::LogicalOr => todo!(),
-                        // Binop::LogicalOrAssign => todo!(),
                         _ => Err(NotASMBinary),
                 }
         }

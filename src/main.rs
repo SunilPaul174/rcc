@@ -5,7 +5,7 @@ use rcc::{
         lex::lex,
         parse::parse_program,
         semantic_analysis::analyze,
-        tactile::TACTILE,
+        tactile::tactile,
         toasm::asm,
         write::write,
 };
@@ -36,7 +36,7 @@ fn main() {
         if res.operation == Operation::Validate {
                 return;
         }
-        let res = TACTILE(res, max_label);
+        let res = tactile(res, max_label);
         if res.operation == Operation::ParseToTACTILETree {
                 return;
         }
