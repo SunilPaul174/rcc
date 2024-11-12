@@ -1,16 +1,10 @@
-use crate::{
-        parse::{
-                nodes::{ABlock, AStatement, BlockItem, LoopLabel},
-                Parsed,
-        },
-        Program,
-};
+use crate::parse::nodes::{ABlock, AProgram, AStatement, BlockItem, LoopLabel};
 
 use super::Error;
 
-pub(super) fn label_loops(program: &mut Program<Parsed>) -> Result<usize, Error> {
+pub(super) fn label_loops(program: &mut AProgram) -> Result<usize, Error> {
         let mut max_label = LoopLabel(0);
-        for i in &mut program.state.program.function.function_body.0 {
+        for i in &mut program.function.function_body.0 {
                 match i {
                         BlockItem::D(_) => {}
                         BlockItem::S(astatement) => label_statement(astatement, None, &mut max_label)?,

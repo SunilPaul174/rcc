@@ -1,6 +1,5 @@
 use nodes::{
-        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, For, ForInit, IfStatement,
-        LoopLabel, Unop,
+        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, For, ForInit, IfStatement, LoopLabel, Unop,
 };
 use thiserror::Error;
 
@@ -14,7 +13,7 @@ use crate::{
 
 pub mod nodes;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parsed {
         pub code: Vec<u8>,
         pub program: AProgram,

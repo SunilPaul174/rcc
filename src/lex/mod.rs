@@ -10,7 +10,7 @@ use crate::{initialize::Initialized, Program, State};
 
 pub mod tokentype;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Lexed {
         pub code: Vec<u8>,
         pub tokens: Vec<Token>,
@@ -38,9 +38,7 @@ pub static CONTINUE: &[u8] = b"continue";
 pub struct KeywordHash(pub u32);
 
 impl Hasher for KeywordHash {
-        fn finish(&self) -> u64 {
-                self.0 as u64
-        }
+        fn finish(&self) -> u64 { self.0 as u64 }
 
         fn write(&mut self, bytes: &[u8]) {
                 let len = bytes.len();
@@ -55,9 +53,7 @@ impl Hasher for KeywordHash {
 impl BuildHasher for KeywordHash {
         type Hasher = Self;
 
-        fn build_hasher(&self) -> Self::Hasher {
-                *self
-        }
+        fn build_hasher(&self) -> Self::Hasher { *self }
 }
 
 type KeywordHasher = BuildHasherDefault<KeywordHash>;

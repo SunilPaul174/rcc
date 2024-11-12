@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{Program, State};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Initialized {
         pub code: Vec<u8>,
 }

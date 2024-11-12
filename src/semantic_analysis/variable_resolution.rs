@@ -7,9 +7,8 @@ use crate::{
 
 use super::Error;
 
-pub fn resolve_variables(code: &[u8], program: &AProgram) -> Result<(), Error> {
+pub fn resolve_variables<'b, 'a: 'b>(code: &'a [u8], program: &AProgram) -> Result<HashMap<(&'b [u8], usize), Identifier>, Error> {
         let mut global_max_identifier = 0;
-        // let mut global_max_label = 0;
         let mut variable_map = HashMap::new();
 
         for i in &program.function.function_body.0 {
@@ -19,7 +18,7 @@ pub fn resolve_variables(code: &[u8], program: &AProgram) -> Result<(), Error> {
                 }
         }
 
-        Ok(())
+        Ok(variable_map)
 }
 
 fn resolve_declaration<'b, 'a: 'b>(
@@ -191,9 +190,7 @@ fn is_valid_lvalue_unop(code: &[u8], unop: Unop, factor: AFactor, variable_map: 
                                 AExpression::BinOp(_binop, left, right) => {
                                         match unop {
                                                 Unop::Negate | Unop::Complement | Unop::Not => {}
-                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => {
-                                                        return Err(Error::InvalidLValueFactor(factor))
-                                                }
+                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => return Err(Error::InvalidLValueFactor(factor)),
                                         }
                                         resolve_exp(code, &left, variable_map, scope)?;
                                         resolve_exp(code, &right, variable_map, scope)

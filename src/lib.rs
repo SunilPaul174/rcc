@@ -13,8 +13,8 @@ pub mod tactile;
 pub mod toasm;
 pub mod write;
 
-#[derive(Debug)]
-pub struct Program<S: State> {
+#[derive(Debug, Clone)]
+pub struct Program<S: State + Clone> {
         pub operation: Operation,
         pub state: S,
 }

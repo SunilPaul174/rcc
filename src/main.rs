@@ -22,21 +22,21 @@ fn main() {
         if res.operation == Operation::Lex {
                 return;
         }
-        let res = parse_program(res).unwrap_or_else(|f| {
+        let mut res = parse_program(res).unwrap_or_else(|f| {
                 eprintln!("{f}");
                 exit(1);
         });
         if res.operation == Operation::ParseToCTree {
                 return;
         }
-        let (res, max_label) = analyze(res).unwrap_or_else(|f| {
+        let (res, max_label, variable_map) = analyze(&mut res).unwrap_or_else(|f| {
                 eprintln!("{f}");
                 exit(1);
         });
         if res.operation == Operation::Validate {
                 return;
         }
-        let res = tactile(res, max_label);
+        let res = tactile(res, max_label, variable_map);
         if res.operation == Operation::ParseToTACTILETree {
                 return;
         }

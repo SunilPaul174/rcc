@@ -111,7 +111,7 @@ impl TryFrom<Binop> for ASMBinary {
         }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ASMProgram {
         pub function: ASMFunction,
 }

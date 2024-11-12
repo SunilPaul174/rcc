@@ -7,7 +7,7 @@ use nodes::{ASMBinary, ASMFunction, ASMInstruction, ASMProgram, ASMUnary, CondCo
 
 pub mod nodes;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Compiled {
         pub code: Vec<u8>,
         pub program: ASMProgram,
