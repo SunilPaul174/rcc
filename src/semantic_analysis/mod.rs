@@ -1,12 +1,9 @@
 use std::collections::HashMap;
 
 use crate::{
-        parse::{
-                nodes::{AExpression, AFactor, AProgram, AStatement},
-                Parsed,
-        },
+        parse::nodes::{AExpression, AFactor, AProgram, AStatement},
         tactile::Identifier,
-        Program, State,
+        State,
 };
 
 pub mod loop_labeling;
@@ -14,7 +11,6 @@ pub mod variable_resolution;
 
 #[derive(Debug, Clone)]
 pub struct SemanticallyAnalyzed {
-        pub code: Vec<u8>,
         pub program: AProgram,
 }
 impl State for SemanticallyAnalyzed {}
@@ -37,22 +33,9 @@ pub enum Error {
         BreakOutsideLoop(AStatement),
 }
 
-pub fn analyze<'a>(program: &'a mut Program<Parsed>) -> Result<(Program<SemanticallyAnalyzed>, usize, HashMap<(&'a [u8], usize), Identifier>), Error> {
-        let code = &program.state.code;
-        let aprogram = &mut program.state.program;
+pub fn analyze<'b, 'a: 'b>(mut program: AProgram, code: &'a [u8]) -> Result<(SemanticallyAnalyzed, usize, HashMap<(&'b [u8], usize), Identifier>), Error> {
+        let variable_map = resolve_variables(code, &program)?;
+        let max_label = label_loops(&mut program)?;
 
-        let variable_map = resolve_variables(code, &aprogram)?;
-        let max_label = label_loops(aprogram)?;
-
-        Ok((
-                Program {
-                        operation: program.operation,
-                        state: SemanticallyAnalyzed {
-                                code: code.clone(),
-                                program: aprogram.clone(),
-                        },
-                },
-                max_label,
-                variable_map,
-        ))
+        Ok((SemanticallyAnalyzed { program }, max_label, variable_map))
 }

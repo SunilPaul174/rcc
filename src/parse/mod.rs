@@ -1,5 +1,6 @@
 use nodes::{
-        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, Conditional, Declaration, For, ForInit, IfStatement, LoopLabel, Unop,
+        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit,
+        IfStatement, LoopSwitchOrNone, ParseLabel, Switch, Unop,
 };
 use thiserror::Error;
 
@@ -74,7 +75,7 @@ fn parse_block(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<ABlock, Error
 fn parse_block_item(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<BlockItem, Error> {
         match tokens[*ptr].token_type {
                 TokenType::Int => Ok(BlockItem::D(parse_declaration(tokens, ptr)?)),
-                _ => Ok(BlockItem::S(parse_statement(tokens, ptr)?)),
+                _ => Ok(BlockItem::S(parse_statement(tokens, ptr, LoopSwitchOrNone::Neither)?)),
         }
 }
 
@@ -105,8 +106,10 @@ fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declara
 | "do" <statement> "while" "(" <exp> ")" ";"
 | "for" "(" <for-init> [ <exp> ] ";" [ <exp> ] ")" <statement>
 | ";"
+| "switch" (aexpression) "{" [ { "case" ":" <statement> } ] [ "default" ":" <statement> ] "}"
 */
-fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatement, Error> {
+fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize, curr_state: LoopSwitchOrNone) -> Result<AStatement, Error> {
+        // println!("curr_state: {:?}, curr_token: {:?}", curr_state, tokens[*ptr]);
         if is_token(tokens, TokenType::Return, ptr).is_ok() {
                 let expr = parse_expression(tokens, ptr, 0)?;
                 is_token(tokens, TokenType::SemiColon, ptr)?;
@@ -118,35 +121,79 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
                 let condition = parse_expression(tokens, ptr, 0)?;
                 is_token(tokens, TokenType::CloseParen, ptr)?;
 
-                let then = Box::new(parse_statement(tokens, ptr)?);
+                let then = Box::new(parse_statement(tokens, ptr, curr_state)?);
 
                 let mut Else = None;
                 if is_token(tokens, TokenType::Else, ptr).is_ok() {
-                        Else = Some(Box::new(parse_statement(tokens, ptr)?));
+                        Else = Some(Box::new(parse_statement(tokens, ptr, curr_state)?));
                 }
 
                 Ok(AStatement::I(IfStatement { condition, then, Else }))
+        // | "switch" "("<aexpression>")" "{" [ { "case" <constant> ":"  <statement> } ] [ "default" ":" <statement> ] "}"
+        } else if is_token(tokens, TokenType::Switch, ptr).is_ok() {
+                is_token(tokens, TokenType::OpenParen, ptr)?;
+                let aexpression = parse_expression(tokens, ptr, 0)?;
+                are_tokens(tokens, &[TokenType::CloseParen, TokenType::OpenBrace], ptr)?;
+
+                let mut cases = vec![];
+                let mut default = None;
+
+                loop {
+                        if is_token(tokens, TokenType::Case, ptr).is_ok() {
+                                let constant = parse_constant(tokens, ptr)?;
+                                is_token(tokens, TokenType::Colon, ptr)?;
+                                let mut statements = vec![];
+                                while let Ok(statement) = parse_statement(tokens, ptr, LoopSwitchOrNone::Switch) {
+                                        statements.push(statement);
+                                }
+                                cases.push((constant, statements));
+                                continue;
+                        }
+
+                        let cond = are_tokens(tokens, &[TokenType::Default, TokenType::Colon], ptr);
+
+                        if cond.is_ok() && default.is_none() {
+                                default = Some(Box::new(parse_statement(tokens, ptr, LoopSwitchOrNone::Switch)?));
+                        } else if cond.is_ok() && default.is_some() {
+                                return Err(Error::InvalidTokenAt(tokens[*ptr], TokenType::Default));
+                        } else {
+                                break;
+                        }
+                }
+
+                is_token(tokens, TokenType::CloseBrace, ptr)?;
+
+                Ok(AStatement::S(Switch {
+                        value: aexpression,
+                        cases,
+                        default,
+                        label: ParseLabel(0),
+                }))
         } else if let Ok(block) = parse_block(tokens, ptr) {
                 Ok(AStatement::Compound(block))
         } else if are_tokens(tokens, &[TokenType::Break, TokenType::SemiColon], ptr).is_ok() {
-                Ok(AStatement::Break(LoopLabel(0)))
+                match curr_state {
+                        LoopSwitchOrNone::Loop => Ok(AStatement::Break(ParseLabel(0), BreakType::Loop)),
+                        LoopSwitchOrNone::Switch => Ok(AStatement::Break(ParseLabel(0), BreakType::Switch)),
+                        LoopSwitchOrNone::Neither => panic!(),
+                }
         } else if are_tokens(tokens, &[TokenType::Continue, TokenType::SemiColon], ptr).is_ok() {
-                Ok(AStatement::Continue(LoopLabel(0)))
+                Ok(AStatement::Continue(ParseLabel(0)))
         // | "while" "(" <exp> ")" <statement>
         } else if are_tokens(tokens, &[TokenType::While, TokenType::OpenParen], ptr).is_ok() {
                 let expr = parse_expression(tokens, ptr, 0)?;
                 is_token(tokens, TokenType::CloseParen, ptr)?;
-                let statement = parse_statement(tokens, ptr)?;
+                let statement = parse_statement(tokens, ptr, LoopSwitchOrNone::Loop)?;
 
-                Ok(AStatement::While(expr, Box::new(statement), LoopLabel(0)))
+                Ok(AStatement::While(expr, Box::new(statement), ParseLabel(0)))
         // | "do" <statement> "while" "(" <exp> ")" ";"
         } else if is_token(tokens, TokenType::Do, ptr).is_ok() {
-                let statement = parse_statement(tokens, ptr)?;
+                let statement = parse_statement(tokens, ptr, LoopSwitchOrNone::Loop)?;
                 are_tokens(tokens, &[TokenType::While, TokenType::OpenParen], ptr)?;
                 let expr = parse_expression(tokens, ptr, 0)?;
                 are_tokens(tokens, &[TokenType::CloseParen, TokenType::SemiColon], ptr)?;
 
-                Ok(AStatement::DoWhile(Box::new(statement), expr, LoopLabel(0)))
+                Ok(AStatement::DoWhile(Box::new(statement), expr, ParseLabel(0)))
         // | "for" "(" <for-init> [ <exp> ] ";" [ <exp> ] ")" <statement>
         } else if are_tokens(tokens, &[TokenType::For, TokenType::OpenParen], ptr).is_ok() {
                 let init = parse_for_init(tokens, ptr)?;
@@ -160,7 +207,7 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
                         post = Some(expr);
                 }
                 is_token(tokens, TokenType::CloseParen, ptr)?;
-                let statement = parse_statement(tokens, ptr)?;
+                let statement = parse_statement(tokens, ptr, LoopSwitchOrNone::Loop)?;
 
                 Ok(AStatement::F(
                         Box::new(For {
@@ -169,7 +216,7 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AStatemen
                                 post,
                                 body: statement,
                         }),
-                        LoopLabel(0),
+                        ParseLabel(0),
                 ))
         } else {
                 is_token(tokens, TokenType::SemiColon, ptr)?;
@@ -402,6 +449,7 @@ fn are_tokens(tokens: &[Token], wanted_token_type: &[TokenType], ptr: &mut usize
                         return Err(Error::InvalidTokenAt(tokens[*ptr + idx], i));
                 }
         }
+        assert!(!wanted_token_type.is_empty());
         *ptr += wanted_token_type.len();
         Ok(())
 }

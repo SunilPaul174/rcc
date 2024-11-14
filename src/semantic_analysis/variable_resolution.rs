@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-        parse::nodes::{ABlock, AExpression, AFactor, AIdentifier, AProgram, AStatement, BlockItem, Conditional, Declaration, ForInit, IfStatement, Unop},
+        parse::nodes::{ABlock, AExpression, AFactor, AIdentifier, AProgram, AStatement, BlockItem, Conditional, Declaration, ForInit, IfStatement, Switch, Unop},
         tactile::Identifier,
 };
 
@@ -120,7 +120,20 @@ fn resolve_statement<'b, 'a: 'b>(
 
                         Ok(())
                 }
-                AStatement::Break(_) | AStatement::Continue(_) => Ok(()),
+                AStatement::Break(..) | AStatement::Continue(_) => Ok(()),
+                AStatement::S(switch) => {
+                        let Switch { value, cases, default, .. } = switch;
+                        resolve_exp(code, value, variable_map, scope)?;
+                        for (_, statements) in cases {
+                                for j in statements {
+                                        resolve_statement(code, j, variable_map, max_identifier, scope)?;
+                                }
+                        }
+                        if let Some(default) = default {
+                                resolve_statement(code, default, variable_map, max_identifier, scope)?;
+                        }
+                        Ok(())
+                }
         }
 }
 
@@ -190,7 +203,9 @@ fn is_valid_lvalue_unop(code: &[u8], unop: Unop, factor: AFactor, variable_map: 
                                 AExpression::BinOp(_binop, left, right) => {
                                         match unop {
                                                 Unop::Negate | Unop::Complement | Unop::Not => {}
-                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => return Err(Error::InvalidLValueFactor(factor)),
+                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => {
+                                                        return Err(Error::InvalidLValueFactor(factor))
+                                                }
                                         }
                                         resolve_exp(code, &left, variable_map, scope)?;
                                         resolve_exp(code, &right, variable_map, scope)

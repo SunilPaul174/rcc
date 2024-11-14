@@ -33,6 +33,9 @@ pub static WHILE: &[u8] = b"while";
 pub static FOR: &[u8] = b"for";
 pub static BREAK: &[u8] = b"break";
 pub static CONTINUE: &[u8] = b"continue";
+pub static SWITCH: &[u8] = b"switch";
+pub static CASE: &[u8] = b"case";
+pub static DEFAULT: &[u8] = b"default";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct KeywordHash(pub u32);
@@ -70,6 +73,9 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
         keyword_map.entry(FOR).or_insert(TokenType::For);
         keyword_map.entry(BREAK).or_insert(TokenType::Break);
         keyword_map.entry(CONTINUE).or_insert(TokenType::Continue);
+        keyword_map.entry(SWITCH).or_insert(TokenType::Switch);
+        keyword_map.entry(CASE).or_insert(TokenType::Case);
+        keyword_map.entry(DEFAULT).or_insert(TokenType::Default);
 
         let mut left = 0;
         let tot_len = program.state.code.len();

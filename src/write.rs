@@ -13,13 +13,10 @@ pub struct Written {
         pub code: Vec<u8>,
 }
 impl State for Written {}
-pub fn write(program: Program<Compiled>) -> Program<Written> {
-        let code = func_to_vec(program.state.program.function, &program.state.code);
+pub fn write(state: Compiled, code: &[u8]) -> Written {
+        let code = func_to_vec(state.program.function, code);
 
-        Program {
-                operation: program.operation,
-                state: Written { code },
-        }
+        Written { code }
 }
 
 pub static EAX: &[u8] = b"%eax";

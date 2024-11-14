@@ -36,14 +36,36 @@ pub enum AStatement {
         I(IfStatement),
         Compound(ABlock),
         Nul,
-        Break(LoopLabel),
-        Continue(LoopLabel),
-        While(AExpression, Box<AStatement>, LoopLabel),
-        DoWhile(Box<AStatement>, AExpression, LoopLabel),
-        F(Box<For>, LoopLabel),
+        Break(ParseLabel, BreakType),
+        Continue(ParseLabel),
+        While(AExpression, Box<AStatement>, ParseLabel),
+        DoWhile(Box<AStatement>, AExpression, ParseLabel),
+        F(Box<For>, ParseLabel),
+        S(Switch),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BreakType {
+        Loop,
+        Switch,
 }
 #[derive(Debug, Clone, Copy)]
-pub struct LoopLabel(pub usize);
+pub enum LoopSwitchOrNone {
+        Loop,
+        Switch,
+        Neither,
+}
+
+#[derive(Debug, Clone)]
+pub struct Switch {
+        pub value: AExpression,
+        pub cases: Vec<(AConstant, Vec<AStatement>)>,
+        pub default: Option<Box<AStatement>>,
+        pub label: ParseLabel,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ParseLabel(pub usize);
 
 #[derive(Debug, Clone)]
 pub struct For {

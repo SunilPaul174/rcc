@@ -1,9 +1,9 @@
-use crate::parse::nodes::{ABlock, AProgram, AStatement, BlockItem, LoopLabel};
+use crate::parse::nodes::{ABlock, AProgram, AStatement, BlockItem, ParseLabel, Switch};
 
 use super::Error;
 
 pub(super) fn label_loops(program: &mut AProgram) -> Result<usize, Error> {
-        let mut max_label = LoopLabel(0);
+        let mut max_label = ParseLabel(0);
         for i in &mut program.function.function_body.0 {
                 match i {
                         BlockItem::D(_) => {}
@@ -14,9 +14,9 @@ pub(super) fn label_loops(program: &mut AProgram) -> Result<usize, Error> {
         Ok(max_label.0)
 }
 
-fn label_statement(statement: &mut AStatement, curr_label: Option<LoopLabel>, max_label: &mut LoopLabel) -> Result<(), Error> {
+fn label_statement(statement: &mut AStatement, curr_label: Option<ParseLabel>, max_label: &mut ParseLabel) -> Result<(), Error> {
         match statement {
-                AStatement::Break(_) | AStatement::Continue(_) => {
+                AStatement::Break(..) | AStatement::Continue(_) => {
                         let Some(label) = curr_label else {
                                 return Err(Error::BreakOutsideLoop(statement.clone()));
                         };
@@ -46,21 +46,36 @@ fn label_statement(statement: &mut AStatement, curr_label: Option<LoopLabel>, ma
                                 }
                         }
                 }
+                AStatement::S(switch) => {
+                        let switch_label = new_label(max_label);
+                        let Switch { cases, default, label, .. } = switch;
+                        *label = switch_label;
+
+                        for i in cases {
+                                for j in &mut i.1 {
+                                        annotate(j, switch_label);
+                                }
+                        }
+
+                        if let Some(default) = default {
+                                annotate(default, switch_label);
+                        }
+                }
                 AStatement::Return(_) | AStatement::Expr(_) | AStatement::Nul => {}
         }
 
         Ok(())
 }
 
-fn new_label(max_label: &mut LoopLabel) -> LoopLabel {
-        let temp = LoopLabel(max_label.0);
+fn new_label(max_label: &mut ParseLabel) -> ParseLabel {
+        let temp = ParseLabel(max_label.0);
         max_label.0 += 1;
         temp
 }
 
-fn annotate(statement: &mut AStatement, curr_label: LoopLabel) {
+fn annotate(statement: &mut AStatement, curr_label: ParseLabel) {
         match statement {
-                AStatement::Break(label) | AStatement::Continue(label) => {
+                AStatement::Break(label, _) | AStatement::Continue(label) => {
                         *label = curr_label;
                 }
                 _ => {}
