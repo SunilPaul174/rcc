@@ -1,5 +1,5 @@
 use crate::{
-        parse::nodes::{AIdentifier, Binop, Unop},
+        parse::nodes::{AIdentifier, Binop},
         tactile::{Constant, Label},
 };
 

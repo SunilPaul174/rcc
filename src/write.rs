@@ -179,6 +179,7 @@ fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, exten
                         instructions.extend_from_slice(JMP);
                         instructions.extend_from_slice(b".L");
                         instructions.extend_from_slice(&label.0.to_string().into_bytes());
+                        instructions.push(b'\n');
                 }
                 ASMInstruction::JmpCC(cond_code, label) => {
                         instructions.extend_from_slice(b"\tj");

@@ -1,6 +1,6 @@
 use nodes::{
-        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit,
-        IfStatement, LoopSwitchOrNone, ParseLabel, Switch, Unop,
+        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit, IfStatement,
+        LoopSwitchOrNone, ParseLabel, Switch, Unop,
 };
 use thiserror::Error;
 

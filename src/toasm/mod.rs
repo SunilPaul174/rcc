@@ -18,9 +18,7 @@ pub fn asm(tactile: TACTILE) -> Compiled {
 
         let function = ASMFunction::from(aprogram.function);
 
-        Compiled {
-                program: ASMProgram { function },
-        }
+        Compiled { program: ASMProgram { function } }
 }
 
 fn val_to_op(value: Value) -> Operand {
@@ -38,9 +36,7 @@ impl From<TACTILEFunction> for ASMFunction {
                 temp_instructions.push(ASMInstruction::AllocateStack(0));
 
                 let from_tactile = |&value| match value {
-                        TACTILEInstruction::Return(val) => {
-                                temp_instructions.extend([ASMInstruction::Mov(val_to_op(val), Operand::Register(Register::AX)), ASMInstruction::Ret])
-                        }
+                        TACTILEInstruction::Return(val) => temp_instructions.extend([ASMInstruction::Mov(val_to_op(val), Operand::Register(Register::AX)), ASMInstruction::Ret]),
                         TACTILEInstruction::Unary(unop, src, dst) => {
                                 let op = match unop {
                                         Unop::Negate => ASMUnary::Negate,
@@ -148,14 +144,12 @@ impl From<TACTILEFunction> for ASMFunction {
                         TACTILEInstruction::Jump(label) => temp_instructions.push(ASMInstruction::Jmp(label)),
                         TACTILEInstruction::Copy(src, dst) => temp_instructions.push(ASMInstruction::Mov(val_to_op(src), val_to_op(dst))),
                         TACTILEInstruction::L(label) => temp_instructions.push(ASMInstruction::Label(label)),
-                        TACTILEInstruction::JumpIfZero(value, label) => temp_instructions.extend([
-                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)),
-                                ASMInstruction::JmpCC(CondCode::E, label),
-                        ]),
-                        TACTILEInstruction::JumpIfNotZero(value, label) => temp_instructions.extend([
-                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)),
-                                ASMInstruction::JmpCC(CondCode::NE, label),
-                        ]),
+                        TACTILEInstruction::JumpIfZero(value, label) => {
+                                temp_instructions.extend([ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)), ASMInstruction::JmpCC(CondCode::E, label)])
+                        }
+                        TACTILEInstruction::JumpIfNotZero(value, label) => {
+                                temp_instructions.extend([ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)), ASMInstruction::JmpCC(CondCode::NE, label)])
+                        }
                 };
 
                 let mut stack_max: usize = 0;
@@ -230,9 +224,7 @@ fn pseudo_pass(value: ASMInstruction, stack_max: &mut usize) -> ASMInstruction {
                         ASMInstruction::SetCC(left, right)
                 }
                 ASMInstruction::Unary(unop, operand) => ASMInstruction::Unary(unop, pseudo_to_stack_operand(operand, stack_max)),
-                ASMInstruction::Binary(binop, left, right) => {
-                        ASMInstruction::Binary(binop, pseudo_to_stack_operand(left, stack_max), pseudo_to_stack_operand(right, stack_max))
-                }
+                ASMInstruction::Binary(binop, left, right) => ASMInstruction::Binary(binop, pseudo_to_stack_operand(left, stack_max), pseudo_to_stack_operand(right, stack_max)),
                 ASMInstruction::IDiv(left) => ASMInstruction::IDiv(pseudo_to_stack_operand(left, stack_max)),
                 _ => value,
         }

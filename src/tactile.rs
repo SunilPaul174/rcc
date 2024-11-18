@@ -2,8 +2,8 @@ use std::{collections::HashMap, hash::BuildHasher};
 
 use crate::{
         parse::nodes::{
-                ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit,
-                IfStatement, ParseLabel, Switch, Unop,
+                ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit, IfStatement,
+                ParseLabel, Switch, Unop,
         },
         semantic_analysis::SemanticallyAnalyzed,
         Program, State,
@@ -52,11 +52,13 @@ struct TACTILELoopLabel {
         pub continue_label: usize,
 }
 
+#[derive(Debug, Clone)]
 enum TACTILELabel {
         T(TACTILELoopLabel),
         S(SwitchLabel),
 }
 
+#[derive(Debug, Clone)]
 struct SwitchLabel {
         label: Label,
         cases: Vec<Label>,
@@ -68,11 +70,7 @@ fn tactilify_loop_label(label: ParseLabel, max_label: &mut usize) -> TACTILELoop
         let continue_label = *max_label + 1;
         let begin = label.0;
         *max_label += 2;
-        TACTILELoopLabel {
-                begin,
-                break_label,
-                continue_label,
-        }
+        TACTILELoopLabel { begin, break_label, continue_label }
 }
 
 #[derive(Debug, Clone)]
@@ -92,25 +90,25 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
         instructions: &mut Vec<TACTILEInstruction>,
         max_id: &mut usize,
         max_label: &mut usize,
-        named_variable_map: &mut HashMap<(&'b [u8], usize), Identifier, S>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), Identifier, S>,
         scope: usize,
 ) -> Value {
         match value {
                 AExpression::F(AFactor::Constant(n)) => Value::Constant(Constant::A(n)),
                 AExpression::F(AFactor::Unop(unop, afactor)) => match unop {
                         Unop::Negate | Unop::Complement | Unop::Not => {
-                                let src = emit_tactile_expr(code, AExpression::F(*afactor), instructions, max_id, max_label, named_variable_map, scope);
+                                let src = emit_tactile_expr(code, AExpression::F(*afactor), instructions, max_id, max_label, identifier_map, scope);
                                 let dst = Value::Var(new_id(max_id));
                                 instructions.push(TACTILEInstruction::Unary(unop, src, dst));
                                 dst
                         }
                         Unop::IncrementPre | Unop::DecrementPre => {
-                                let left = emit_tactile_expr(code, AExpression::F(*afactor), instructions, max_id, max_label, named_variable_map, scope);
+                                let left = emit_tactile_expr(code, AExpression::F(*afactor), instructions, max_id, max_label, identifier_map, scope);
                                 instructions.push(TACTILEInstruction::Unary(unop, left, left));
                                 left
                         }
                         Unop::IncrementPost | Unop::DecrementPost => {
-                                let src = emit_tactile_expr(code, AExpression::F(*afactor), instructions, max_id, max_label, named_variable_map, scope);
+                                let src = emit_tactile_expr(code, AExpression::F(*afactor), instructions, max_id, max_label, identifier_map, scope);
                                 let dst = Value::Var(new_id(max_id));
                                 instructions.push(TACTILEInstruction::Copy(src, dst));
                                 instructions.push(TACTILEInstruction::Unary(unop, src, src));
@@ -122,9 +120,9 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
                                 let false_label = new_label(max_label);
                                 let end_label = new_label(max_label);
 
-                                let v1 = emit_tactile_expr(code, *left, instructions, max_id, max_label, named_variable_map, scope);
+                                let v1 = emit_tactile_expr(code, *left, instructions, max_id, max_label, identifier_map, scope);
                                 instructions.push(TACTILEInstruction::JumpIfNotZero(v1, false_label));
-                                let v2 = emit_tactile_expr(code, *right, instructions, max_id, max_label, named_variable_map, scope);
+                                let v2 = emit_tactile_expr(code, *right, instructions, max_id, max_label, identifier_map, scope);
                                 instructions.push(TACTILEInstruction::JumpIfNotZero(v2, false_label));
 
                                 let dst = Value::Var(new_id(max_id));
@@ -141,9 +139,9 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
                                 let false_label = new_label(max_label);
                                 let end_label = new_label(max_label);
 
-                                let v1 = emit_tactile_expr(code, *left, instructions, max_id, max_label, named_variable_map, scope);
+                                let v1 = emit_tactile_expr(code, *left, instructions, max_id, max_label, identifier_map, scope);
                                 instructions.push(TACTILEInstruction::JumpIfZero(v1, false_label));
-                                let v2 = emit_tactile_expr(code, *right, instructions, max_id, max_label, named_variable_map, scope);
+                                let v2 = emit_tactile_expr(code, *right, instructions, max_id, max_label, identifier_map, scope);
                                 instructions.push(TACTILEInstruction::JumpIfZero(v2, false_label));
 
                                 let dst = Value::Var(new_id(max_id));
@@ -157,37 +155,37 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
                                 dst
                         }
                         _ => {
-                                let v1 = emit_tactile_expr(code, *left, instructions, max_id, max_label, named_variable_map, scope);
-                                let v2 = emit_tactile_expr(code, *right, instructions, max_id, max_label, named_variable_map, scope);
+                                let v1 = emit_tactile_expr(code, *left, instructions, max_id, max_label, identifier_map, scope);
+                                let v2 = emit_tactile_expr(code, *right, instructions, max_id, max_label, identifier_map, scope);
                                 let dst = Value::Var(new_id(max_id));
                                 instructions.push(TACTILEInstruction::Binary(binop, v1, v2, dst));
                                 dst
                         }
                 },
-                AExpression::F(AFactor::Expr(expr)) => emit_tactile_expr(code, *expr, instructions, max_id, max_label, named_variable_map, scope),
+                AExpression::F(AFactor::Expr(expr)) => emit_tactile_expr(code, *expr, instructions, max_id, max_label, identifier_map, scope),
                 AExpression::Assignment(lval, rval) => {
-                        let left = emit_tactile_expr(code, *lval, instructions, max_id, max_label, named_variable_map, scope);
-                        let right = emit_tactile_expr(code, *rval, instructions, max_id, max_label, named_variable_map, scope);
+                        let left = emit_tactile_expr(code, *lval, instructions, max_id, max_label, identifier_map, scope);
+                        let right = emit_tactile_expr(code, *rval, instructions, max_id, max_label, identifier_map, scope);
                         instructions.push(TACTILEInstruction::Copy(right, left));
                         left
                 }
                 AExpression::F(AFactor::Id(id)) => {
                         let AIdentifier { start, len } = id;
                         let name = &code[start..start + len];
-                        let mut potential = named_variable_map.keys().filter(|(f, _)| *f == name).peekable();
+                        let mut potential = identifier_map.keys().filter(|(f, _)| *f == name).peekable();
 
                         if potential.peek().is_none() {
-                                let entered = named_variable_map.entry((name, scope)).insert_entry(new_id(max_id));
+                                let entered = identifier_map.entry((name, scope)).insert_entry(new_id(max_id));
                                 return Value::Var(*entered.get());
                         }
 
                         let max = potential.max_by_key(|f| f.1).unwrap();
 
-                        Value::Var(*named_variable_map.get(max).unwrap())
+                        Value::Var(*identifier_map.get(max).unwrap())
                 }
                 AExpression::OpAssignment(binop, left, right) => {
-                        let left = emit_tactile_expr(code, *left, instructions, max_id, max_label, named_variable_map, scope);
-                        let right = emit_tactile_expr(code, *right, instructions, max_id, max_label, named_variable_map, scope);
+                        let left = emit_tactile_expr(code, *left, instructions, max_id, max_label, identifier_map, scope);
+                        let right = emit_tactile_expr(code, *right, instructions, max_id, max_label, identifier_map, scope);
 
                         instructions.push(TACTILEInstruction::Binary(binop, left, right, left));
                         left
@@ -198,17 +196,13 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
 
                         let result = Value::Var(new_id(max_id));
 
-                        let c = emit_tactile_expr(code, *condition, instructions, max_id, max_label, named_variable_map, scope);
+                        let c = emit_tactile_expr(code, *condition, instructions, max_id, max_label, identifier_map, scope);
                         instructions.push(TACTILEInstruction::JumpIfZero(c, else_label));
 
-                        let val1 = emit_tactile_expr(code, *True, instructions, max_id, max_label, named_variable_map, scope);
-                        instructions.extend_from_slice(&[
-                                TACTILEInstruction::Copy(val1, result),
-                                TACTILEInstruction::Jump(end_label),
-                                TACTILEInstruction::L(else_label),
-                        ]);
+                        let val1 = emit_tactile_expr(code, *True, instructions, max_id, max_label, identifier_map, scope);
+                        instructions.extend_from_slice(&[TACTILEInstruction::Copy(val1, result), TACTILEInstruction::Jump(end_label), TACTILEInstruction::L(else_label)]);
 
-                        let val2 = emit_tactile_expr(code, *False, instructions, max_id, max_label, named_variable_map, scope);
+                        let val2 = emit_tactile_expr(code, *False, instructions, max_id, max_label, identifier_map, scope);
                         instructions.extend_from_slice(&[TACTILEInstruction::Copy(val2, result), TACTILEInstruction::L(end_label)]);
 
                         result
@@ -216,12 +210,7 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
         }
 }
 
-fn tactile_program<'b, 'a: 'b>(
-        program: AProgram,
-        code: &'a [u8],
-        max_label: &mut usize,
-        mut named_variable_map: HashMap<(&'b [u8], usize), Identifier>,
-) -> TACTILEProgram {
+fn tactile_program<'b, 'a: 'b>(program: AProgram, code: &'a [u8], max_label: &mut usize, mut identifier_map: HashMap<(&'b [u8], usize), Identifier>) -> TACTILEProgram {
         let value = program.function;
         let mut instructions = vec![];
         let mut global_max_identifier = 1;
@@ -238,11 +227,10 @@ fn tactile_program<'b, 'a: 'b>(
                                                 &mut instructions,
                                                 &mut global_max_identifier,
                                                 max_label,
-                                                &mut named_variable_map,
+                                                &mut identifier_map,
                                                 scope,
                                         );
-                                        let expr =
-                                                emit_tactile_expr(code, init, &mut instructions, &mut global_max_identifier, max_label, &mut named_variable_map, scope);
+                                        let expr = emit_tactile_expr(code, init, &mut instructions, &mut global_max_identifier, max_label, &mut identifier_map, scope);
                                         instructions.push(TACTILEInstruction::Copy(expr, var));
                                 }
                         }
@@ -252,7 +240,7 @@ fn tactile_program<'b, 'a: 'b>(
                                 &mut instructions,
                                 &mut global_max_identifier,
                                 max_label,
-                                &mut named_variable_map,
+                                &mut identifier_map,
                                 &mut loop_labels,
                                 scope,
                                 None,
@@ -347,19 +335,19 @@ fn emit_tactile_statement<'b, 'a: 'b>(
                         }
                         identifier_map.retain(|&(_, f), _| f <= scope);
                 }
-                AStatement::Break(_, breaktype) => match breaktype {
+                AStatement::Break(label, breaktype) => match breaktype {
                         BreakType::Loop => {
-                                let TACTILELabel::T(last_label) = labels[labels.len() - 1] else {
-                                        panic!("logic bug")
-                                };
+                                let TACTILELabel::T(last_label) = labels[labels.len() - 1] else { panic!("logic bug") };
                                 instructions.push(TACTILEInstruction::Jump(Label(last_label.break_label)))
                         }
-                        BreakType::Switch => todo!(),
+                        BreakType::Switch => {
+                                let TACTILELabel::S(last_label) = &labels[labels.len() - 1] else { panic!("logic bug") };
+
+                                instructions.push(TACTILEInstruction::Jump(last_label.label));
+                        }
                 },
                 AStatement::Continue(_) => {
-                        let TACTILELabel::T(last_label) = labels[labels.len() - 1] else {
-                                panic!("logic bug")
-                        };
+                        let TACTILELabel::T(last_label) = labels[labels.len() - 1] else { panic!("logic bug") };
                         instructions.push(TACTILEInstruction::Jump(Label(last_label.continue_label)));
                 }
                 AStatement::DoWhile(astatement, aexpression, loop_label) => {
@@ -385,10 +373,7 @@ fn emit_tactile_statement<'b, 'a: 'b>(
 
                         let result = emit_tactile_expr(code, aexpression, instructions, max_id, max_label, identifier_map, scope + 1);
 
-                        instructions.extend([
-                                TACTILEInstruction::JumpIfNotZero(result, begin),
-                                TACTILEInstruction::L(Label(tactile_label.break_label)),
-                        ]);
+                        instructions.extend([TACTILEInstruction::JumpIfNotZero(result, begin), TACTILEInstruction::L(Label(tactile_label.break_label))]);
                         identifier_map.retain(|&(_, f), _| f <= scope);
                 }
                 AStatement::While(aexpression, astatement, loop_label) => {
@@ -468,10 +453,7 @@ fn emit_tactile_statement<'b, 'a: 'b>(
                                 let _ = emit_tactile_expr(code, aexpression, instructions, max_id, max_label, identifier_map, scope + 1);
                         }
 
-                        instructions.extend([
-                                TACTILEInstruction::Jump(Label(tactile_label.begin)),
-                                TACTILEInstruction::L(Label(tactile_label.break_label)),
-                        ]);
+                        instructions.extend([TACTILEInstruction::Jump(Label(tactile_label.begin)), TACTILEInstruction::L(Label(tactile_label.break_label))]);
 
                         identifier_map.retain(|&(_, f), _| f <= scope);
                 }
@@ -481,11 +463,10 @@ fn emit_tactile_statement<'b, 'a: 'b>(
                         if cases.is_empty() && default.is_none() {
                                 return;
                         }
-                        let break_label = new_label(max_label);
 
                         let mut case_labels = Vec::with_capacity(cases.len() - 1);
 
-                        for _ in 1..cases.len() {
+                        for _ in 0..cases.len() {
                                 case_labels.push(new_label(max_id));
                         }
 
@@ -495,6 +476,8 @@ fn emit_tactile_statement<'b, 'a: 'b>(
                                 default_label = Some(new_label(max_label));
                                 pot_def = Some(default);
                         }
+
+                        let break_label = Label(label.0);
 
                         labels.push(TACTILELabel::S(SwitchLabel {
                                 cases: case_labels.clone(),
@@ -510,7 +493,7 @@ fn emit_tactile_statement<'b, 'a: 'b>(
 
                                 instructions.extend([
                                         TACTILEInstruction::Binary(Binop::EqualTo, value, curr_const, dst),
-                                        TACTILEInstruction::JumpIfNotZero(dst, case_labels[idx]),
+                                        TACTILEInstruction::JumpIfZero(dst, case_labels[idx]),
                                 ]);
 
                                 for i in statements {
@@ -520,6 +503,9 @@ fn emit_tactile_statement<'b, 'a: 'b>(
                                 if idx > 0 {
                                         instructions.push(TACTILEInstruction::L(case_labels[idx - 1]));
                                 }
+                        }
+                        if let Some(case_label) = case_labels.last() {
+                                instructions.push(TACTILEInstruction::L(*case_label));
                         }
 
                         if let Some(default) = pot_def {
@@ -532,11 +518,11 @@ fn emit_tactile_statement<'b, 'a: 'b>(
         }
 }
 
-pub fn tactile(program: Program<SemanticallyAnalyzed>, mut max_label: usize, variable_map: HashMap<(&[u8], usize), Identifier>, code: &[u8]) -> Program<TACTILE> {
+pub fn tactile(program: Program<SemanticallyAnalyzed>, mut max_label: usize, identifier_map: HashMap<(&[u8], usize), Identifier>, code: &[u8]) -> Program<TACTILE> {
         Program {
                 operation: program.operation,
                 state: TACTILE {
-                        program: tactile_program(program.state.program, code, &mut max_label, variable_map),
+                        program: tactile_program(program.state.program, code, &mut max_label, identifier_map),
                 },
         }
 }
