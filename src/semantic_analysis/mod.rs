@@ -33,7 +33,9 @@ pub enum Error {
         BreakOutsideLoop(AStatement),
 }
 
-pub fn analyze<'b, 'a: 'b>(mut program: AProgram, code: &'a [u8]) -> Result<(SemanticallyAnalyzed, usize, HashMap<(&'b [u8], usize), Identifier>), Error> {
+type IdentifierMap<'b> = Result<(SemanticallyAnalyzed, usize, HashMap<(&'b [u8], usize), Identifier>), Error>;
+
+pub fn analyze<'b, 'a: 'b>(mut program: AProgram, code: &'a [u8]) -> IdentifierMap<'b> {
         let variable_map = resolve_variables(code, &program)?;
         let max_label = label_loops(&mut program)?;
 

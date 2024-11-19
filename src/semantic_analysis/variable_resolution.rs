@@ -55,8 +55,7 @@ fn resolve_statement<'b, 'a: 'b>(
         scope: usize,
 ) -> Result<(), Error> {
         match statement {
-                AStatement::Return(expr) => resolve_exp(code, expr, variable_map, scope),
-                AStatement::Expr(expr) => resolve_exp(code, expr, variable_map, scope),
+                AStatement::Return(expr) | AStatement::Expr(expr) => resolve_exp(code, expr, variable_map, scope),
                 AStatement::I(if_statement) => {
                         let IfStatement { condition, then, Else } = if_statement;
                         resolve_exp(code, condition, variable_map, scope)?;
@@ -67,7 +66,7 @@ fn resolve_statement<'b, 'a: 'b>(
 
                         Ok(())
                 }
-                AStatement::Nul => Ok(()),
+                AStatement::Nul | AStatement::Break(..) | AStatement::Continue(_) => Ok(()),
                 AStatement::Compound(ABlock(block)) => {
                         let inner_scope = scope + 1;
 
@@ -122,7 +121,6 @@ fn resolve_statement<'b, 'a: 'b>(
 
                         Ok(())
                 }
-                AStatement::Break(..) | AStatement::Continue(_) => Ok(()),
                 AStatement::S(switch) => {
                         let Switch { value, cases, default, .. } = switch;
                         resolve_exp(code, value, variable_map, scope)?;
@@ -205,7 +203,9 @@ fn is_valid_lvalue_unop(code: &[u8], unop: Unop, factor: AFactor, variable_map: 
                                 AExpression::BinOp(_binop, left, right) => {
                                         match unop {
                                                 Unop::Negate | Unop::Complement | Unop::Not => {}
-                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => return Err(Error::InvalidLValueFactor(factor)),
+                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => {
+                                                        return Err(Error::InvalidLValueFactor(factor))
+                                                }
                                         }
                                         resolve_exp(code, &left, variable_map, scope)?;
                                         resolve_exp(code, &right, variable_map, scope)

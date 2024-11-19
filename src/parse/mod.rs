@@ -1,6 +1,6 @@
 use nodes::{
-        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit, IfStatement,
-        LoopSwitchOrNone, ParseLabel, Switch, Unop,
+        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit,
+        IfStatement, LoopSwitchOrNone, ParseLabel, Switch, Unop,
 };
 use thiserror::Error;
 
@@ -281,7 +281,7 @@ fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: us
                                 condition: Box::new(left),
                                 True: Box::new(middle),
                                 False: Box::new(right),
-                        })
+                        });
                 } else {
                         let right = parse_expression(tokens, ptr, operator_precedence + 1)?;
                         left = AExpression::BinOp(operator, Box::new(left), Box::new(right));
