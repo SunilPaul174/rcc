@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 pub struct AProgram {
-        pub function: AFunction,
+        pub functions: Vec<AFunction>,
 }
 
 #[derive(Debug, Clone)]

@@ -17,6 +17,7 @@ pub mod write;
 pub struct Program<S: State + Clone> {
         pub operation: Operation,
         pub state: S,
+        pub obj: bool,
 }
 
 pub trait State {}

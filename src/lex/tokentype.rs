@@ -60,6 +60,7 @@ pub enum TokenType {
         Switch,
         Case,
         Default,
+        Comma,
 }
 
 #[derive(Debug, Clone, Copy)]

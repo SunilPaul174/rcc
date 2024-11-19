@@ -45,9 +45,10 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Err
         Ok(Program {
                 state: Parsed {
                         code: program.state.code,
-                        program: AProgram { function },
+                        program: AProgram { functions: vec![function] },
                 },
                 operation: program.operation,
+                obj: program.obj,
         })
 }
 

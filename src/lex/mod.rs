@@ -41,7 +41,9 @@ pub static DEFAULT: &[u8] = b"default";
 pub struct KeywordHash(pub u32);
 
 impl Hasher for KeywordHash {
-        fn finish(&self) -> u64 { self.0 as u64 }
+        fn finish(&self) -> u64 {
+                self.0 as u64
+        }
 
         fn write(&mut self, bytes: &[u8]) {
                 let len = bytes.len();
@@ -56,7 +58,9 @@ impl Hasher for KeywordHash {
 impl BuildHasher for KeywordHash {
         type Hasher = Self;
 
-        fn build_hasher(&self) -> Self::Hasher { *self }
+        fn build_hasher(&self) -> Self::Hasher {
+                *self
+        }
 }
 
 type KeywordHasher = BuildHasherDefault<KeywordHash>;
@@ -182,6 +186,7 @@ fn match_symbol(code: &[u8], start: usize) -> Option<Token> {
                 b'!' => Some(TokenType::Not),
                 b'?' => Some(TokenType::Ternary),
                 b':' => Some(TokenType::Colon),
+                b',' => Some(TokenType::Comma),
                 _ => None,
         } {
                 let Some(curr) = code.get(start + 1) else {

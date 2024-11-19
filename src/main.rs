@@ -42,6 +42,7 @@ fn main() {
         let res = Program {
                 operation: res.operation,
                 state: semanal,
+                obj: res.obj,
         };
 
         let res = tactile(res, max_label, variable_map, &code);
@@ -55,6 +56,7 @@ fn main() {
         let res = Program {
                 operation: res.operation,
                 state: asm,
+                obj: res.obj,
         };
         let code = write(res.state, &code).code;
         println!("{}", String::from_utf8(code).unwrap());

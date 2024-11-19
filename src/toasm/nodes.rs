@@ -113,7 +113,7 @@ impl TryFrom<Binop> for ASMBinary {
 
 #[derive(Debug, Clone)]
 pub struct ASMProgram {
-        pub function: ASMFunction,
+        pub functions: Vec<ASMFunction>,
 }
 #[derive(Debug, Clone)]
 pub struct ASMFunction {

@@ -4,10 +4,12 @@ use super::Error;
 
 pub(super) fn label_loops(program: &mut AProgram) -> Result<usize, Error> {
         let mut max_label = ParseLabel(0);
-        for i in &mut program.function.function_body.0 {
-                match i {
-                        BlockItem::D(_) => {}
-                        BlockItem::S(astatement) => label_statement(astatement, None, &mut max_label)?,
+        for i in &mut program.functions {
+                for j in &mut i.function_body.0 {
+                        match j {
+                                BlockItem::D(_) => {}
+                                BlockItem::S(astatement) => label_statement(astatement, None, &mut max_label)?,
+                        }
                 }
         }
 

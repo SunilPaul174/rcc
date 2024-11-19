@@ -14,11 +14,12 @@ pub struct Compiled {
 impl State for Compiled {}
 
 pub fn asm(tactile: TACTILE) -> Compiled {
-        let aprogram = tactile.program;
+        let mut functions = vec![];
+        for i in tactile.program.functions {
+                functions.push(ASMFunction::from(i));
+        }
 
-        let function = ASMFunction::from(aprogram.function);
-
-        Compiled { program: ASMProgram { function } }
+        Compiled { program: ASMProgram { functions } }
 }
 
 fn val_to_op(value: Value) -> Operand {

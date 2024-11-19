@@ -33,17 +33,19 @@ pub enum Error {
         IoError(io::Error),
 }
 impl From<io::Error> for Error {
-        fn from(value: io::Error) -> Self { Error::IoError(value) }
+        fn from(value: io::Error) -> Self {
+                Error::IoError(value)
+        }
 }
 
-fn get_request() -> Result<(Operation, PathBuf), Error> {
+fn get_request() -> Result<(Operation, PathBuf, bool), Error> {
         let mut args = std::env::args();
         args.next();
 
         let first_two = (args.next(), args.next());
 
         if let (Some(string), None) = first_two {
-                return Ok((Operation::Compile, PathBuf::from(string)));
+                return Ok((Operation::Compile, PathBuf::from(string), false));
         }
 
         let Some(op) = first_two.0 else {
@@ -54,19 +56,20 @@ fn get_request() -> Result<(Operation, PathBuf), Error> {
         let file = PathBuf::from(file);
 
         match op.as_str() {
-                "--lex" => Ok((Operation::Lex, file)),
-                "--parse" => Ok((Operation::ParseToCTree, file)),
-                "--tacky" | "--tactile" => Ok((Operation::ParseToTACTILETree, file)),
-                "--validate" => Ok((Operation::Validate, file)),
-                "--codegen" => Ok((Operation::ParseToASMTree, file)),
-                "-S" => Ok((Operation::GenerateASM, file)),
-                "-C" => Ok((Operation::Compile, file)),
+                "--lex" => Ok((Operation::Lex, file, false)),
+                "--parse" => Ok((Operation::ParseToCTree, file, false)),
+                "--tacky" | "--tactile" => Ok((Operation::ParseToTACTILETree, file, false)),
+                "--validate" => Ok((Operation::Validate, file, false)),
+                "--codegen" => Ok((Operation::ParseToASMTree, file, false)),
+                "-S" => Ok((Operation::GenerateASM, file, false)),
+                "-C" => Ok((Operation::Compile, file, false)),
+                "-c" => Ok((Operation::Compile, file, true)),
                 _ => Err(Error::MalformedOperationInput),
         }
 }
 
 pub fn initialize() -> Result<Program<Initialized>, Error> {
-        let (operation, path) = get_request()?;
+        let (operation, path, obj) = get_request()?;
         let mut binding = Command::new("cc");
         let preprocessor = binding.args(["-E", "-P"]).arg(path).args(["-o", "-"]);
         let code = preprocessor.output()?.stdout;
@@ -74,5 +77,6 @@ pub fn initialize() -> Result<Program<Initialized>, Error> {
         Ok(Program {
                 operation,
                 state: Initialized { code },
+                obj,
         })
 }

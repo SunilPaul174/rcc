@@ -11,10 +11,12 @@ pub fn resolve_variables<'b, 'a: 'b>(code: &'a [u8], program: &AProgram) -> Resu
         let mut global_max_identifier = 0;
         let mut variable_map = HashMap::new();
 
-        for i in &program.function.function_body.0 {
-                match i {
-                        BlockItem::D(declaration) => resolve_declaration(code, declaration, &mut variable_map, &mut global_max_identifier, 0)?,
-                        BlockItem::S(astatement) => resolve_statement(code, astatement, &mut variable_map, &mut global_max_identifier, 0)?,
+        for i in &program.functions {
+                for j in &i.function_body.0 {
+                        match j {
+                                BlockItem::D(declaration) => resolve_declaration(code, declaration, &mut variable_map, &mut global_max_identifier, 0)?,
+                                BlockItem::S(astatement) => resolve_statement(code, astatement, &mut variable_map, &mut global_max_identifier, 0)?,
+                        }
                 }
         }
 
@@ -203,9 +205,7 @@ fn is_valid_lvalue_unop(code: &[u8], unop: Unop, factor: AFactor, variable_map: 
                                 AExpression::BinOp(_binop, left, right) => {
                                         match unop {
                                                 Unop::Negate | Unop::Complement | Unop::Not => {}
-                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => {
-                                                        return Err(Error::InvalidLValueFactor(factor))
-                                                }
+                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => return Err(Error::InvalidLValueFactor(factor)),
                                         }
                                         resolve_exp(code, &left, variable_map, scope)?;
                                         resolve_exp(code, &right, variable_map, scope)

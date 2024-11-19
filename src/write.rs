@@ -1,11 +1,11 @@
 use crate::{
-        parse::nodes::{AConstant, AIdentifier, Unop},
+        parse::nodes::{AConstant, AIdentifier},
         tactile::Constant,
         toasm::{
                 nodes::{ASMBinary, ASMFunction, ASMInstruction, ASMUnary, CondCode, Operand, Register},
                 Compiled,
         },
-        Program, State,
+        State,
 };
 
 #[derive(Debug, Clone)]
@@ -14,9 +14,13 @@ pub struct Written {
 }
 impl State for Written {}
 pub fn write(state: Compiled, code: &[u8]) -> Written {
-        let code = func_to_vec(state.program.function, code);
+        let mut written = vec![];
 
-        Written { code }
+        for i in state.program.functions {
+                written.extend(func_to_vec(i, code));
+        }
+
+        Written { code: written }
 }
 
 pub static EAX: &[u8] = b"%eax";
