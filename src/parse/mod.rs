@@ -1,6 +1,6 @@
 use nodes::{
-        ABlock, AConstant, AExpression, AFactor, AFunction, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit,
-        IfStatement, LoopSwitchOrNone, ParseLabel, Switch, Unop,
+        ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit, FunctionDeclaration,
+        IfStatement, LoopSwitchOrNone, ParseLabel, Switch, Unop, VariableDeclaration,
 };
 use thiserror::Error;
 
@@ -33,10 +33,15 @@ pub enum Error {
         InvalidFactorAt(Token),
 }
 
-// <program> ::= <function>
+// <program> ::= { <function-declaration> }
 pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Error> {
         let mut ptr = 0;
-        let function = parse_function(&mut program.state.tokens, &mut ptr)?;
+
+        let mut functions = vec![];
+
+        while let Ok(function) = parse_function_declaration(&mut program.state.tokens, &mut ptr) {
+                functions.push(function);
+        }
 
         if ptr < program.state.tokens.len() {
                 return Err(Error::TooManyTokens);
@@ -45,24 +50,15 @@ pub fn parse_program(mut program: Program<Lexed>) -> Result<Program<Parsed>, Err
         Ok(Program {
                 state: Parsed {
                         code: program.state.code,
-                        program: AProgram { functions: vec![function] },
+                        program: AProgram { functions },
                 },
                 operation: program.operation,
                 obj: program.obj,
         })
 }
 
-// <function> ::= "int" <identifier> "(" "void" ")" <block>
-fn parse_function(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFunction, Error> {
-        is_token(tokens, TokenType::Int, ptr)?;
-        let identifier = parse_identifier(tokens, ptr)?;
-        are_tokens(tokens, &[TokenType::OpenParen, TokenType::Void, TokenType::CloseParen], ptr)?;
-        let function_body = parse_block(tokens, ptr)?;
-
-        Ok(AFunction { identifier, function_body })
-}
 // <block> ::= "{" { <block-item> } "}"
-fn parse_block(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<ABlock, Error> {
+fn parse_block(tokens: &[Token], ptr: &mut usize) -> Result<ABlock, Error> {
         is_token(tokens, TokenType::OpenBrace, ptr)?;
         let mut block = vec![];
         while tokens[*ptr].token_type != TokenType::CloseBrace {
@@ -73,15 +69,60 @@ fn parse_block(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<ABlock, Error
 }
 
 // <block-item> ::= <statement> | <declaration>
-fn parse_block_item(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<BlockItem, Error> {
+fn parse_block_item(tokens: &[Token], ptr: &mut usize) -> Result<BlockItem, Error> {
         match tokens[*ptr].token_type {
                 TokenType::Int => Ok(BlockItem::D(parse_declaration(tokens, ptr)?)),
                 _ => Ok(BlockItem::S(parse_statement(tokens, ptr, LoopSwitchOrNone::Neither)?)),
         }
 }
 
-// <declaration> ::= "int" <identifier> [ "=" <exp> ] ";"
-fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declaration, Error> {
+// <declaration> ::= <variable-declaration> | <function-declaration>
+fn parse_declaration(tokens: &[Token], ptr: &mut usize) -> Result<Declaration, Error> {
+        if [TokenType::Equal, TokenType::SemiColon].contains(&tokens[*ptr + 2].token_type) {
+                Ok(Declaration::V(parse_variable_declaration(tokens, ptr)?))
+        } else {
+                Ok(Declaration::F(parse_function_declaration(tokens, ptr)?))
+        }
+}
+
+// <function-declaration> ::= "int" <identifier> "(" <param-list> ")" ( <block> | ";")
+fn parse_function_declaration(tokens: &[Token], ptr: &mut usize) -> Result<FunctionDeclaration, Error> {
+        is_token(tokens, TokenType::Int, ptr)?;
+        let name = parse_identifier(tokens, ptr)?;
+        is_token(tokens, TokenType::OpenParen, ptr);
+        let params = parse_param_list(tokens, ptr)?;
+        is_token(tokens, TokenType::CloseParen, ptr);
+        let function_body = parse_block(tokens, ptr)?;
+
+        Ok(FunctionDeclaration {
+                name,
+                params,
+                body: Some(function_body),
+        })
+}
+
+// <param-list> ::= "void" | "int" <identifier> { "," "int" <identifier> }
+fn parse_param_list(tokens: &[Token], ptr: &mut usize) -> Result<Option<Vec<AIdentifier>>, Error> {
+        if is_token(tokens, TokenType::Void, ptr).is_ok() {
+                return Ok(None);
+        }
+
+        let mut parameters = vec![];
+
+        loop {
+                if is_token(tokens, TokenType::Int, ptr).is_ok() {
+                        parameters.push(parse_identifier(tokens, ptr)?);
+                } else if is_token(tokens, TokenType::Comma, ptr).is_ok() {
+                        continue;
+                }
+                break;
+        }
+
+        Ok(Some(parameters))
+}
+
+// <variable-declaration> ::= "int" <identifier> [ "=" <exp> ] ";"
+fn parse_variable_declaration(tokens: &[Token], ptr: &mut usize) -> Result<VariableDeclaration, Error> {
         is_token(tokens, TokenType::Int, ptr)?;
 
         let (start, len) = is_token(tokens, TokenType::Identifier, ptr)?;
@@ -94,7 +135,7 @@ fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declara
         }
 
         is_token(tokens, TokenType::SemiColon, ptr)?;
-        Ok(Declaration { id, init })
+        Ok(VariableDeclaration { id, init })
 }
 
 /* <statement> ::= "return" <exp> ";"
@@ -109,7 +150,7 @@ fn parse_declaration(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<Declara
 | ";"
 | "switch" (aexpression) "{" [ { "case" ":" <statement> } ] [ "default" ":" <statement> ] "}"
 */
-fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize, curr_state: LoopSwitchOrNone) -> Result<AStatement, Error> {
+fn parse_statement(tokens: &[Token], ptr: &mut usize, curr_state: LoopSwitchOrNone) -> Result<AStatement, Error> {
         // println!("curr_state: {:?}, curr_token: {:?}", curr_state, tokens[*ptr]);
         if is_token(tokens, TokenType::Return, ptr).is_ok() {
                 let expr = parse_expression(tokens, ptr, 0)?;
@@ -130,7 +171,6 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize, curr_state: LoopSwi
                 }
 
                 Ok(AStatement::I(IfStatement { condition, then, Else }))
-        // | "switch" "("<aexpression>")" "{" [ { "case" <constant> ":"  <statement> } ] [ "default" ":" <statement> ] "}"
         } else if is_token(tokens, TokenType::Switch, ptr).is_ok() {
                 is_token(tokens, TokenType::OpenParen, ptr)?;
                 let aexpression = parse_expression(tokens, ptr, 0)?;
@@ -180,14 +220,12 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize, curr_state: LoopSwi
                 }
         } else if are_tokens(tokens, &[TokenType::Continue, TokenType::SemiColon], ptr).is_ok() {
                 Ok(AStatement::Continue(ParseLabel(0)))
-        // | "while" "(" <exp> ")" <statement>
         } else if are_tokens(tokens, &[TokenType::While, TokenType::OpenParen], ptr).is_ok() {
                 let expr = parse_expression(tokens, ptr, 0)?;
                 is_token(tokens, TokenType::CloseParen, ptr)?;
                 let statement = parse_statement(tokens, ptr, LoopSwitchOrNone::Loop)?;
 
                 Ok(AStatement::While(expr, Box::new(statement), ParseLabel(0)))
-        // | "do" <statement> "while" "(" <exp> ")" ";"
         } else if is_token(tokens, TokenType::Do, ptr).is_ok() {
                 let statement = parse_statement(tokens, ptr, LoopSwitchOrNone::Loop)?;
                 are_tokens(tokens, &[TokenType::While, TokenType::OpenParen], ptr)?;
@@ -195,7 +233,6 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize, curr_state: LoopSwi
                 are_tokens(tokens, &[TokenType::CloseParen, TokenType::SemiColon], ptr)?;
 
                 Ok(AStatement::DoWhile(Box::new(statement), expr, ParseLabel(0)))
-        // | "for" "(" <for-init> [ <exp> ] ";" [ <exp> ] ")" <statement>
         } else if are_tokens(tokens, &[TokenType::For, TokenType::OpenParen], ptr).is_ok() {
                 let init = parse_for_init(tokens, ptr)?;
 
@@ -225,11 +262,12 @@ fn parse_statement(tokens: &mut Vec<Token>, ptr: &mut usize, curr_state: LoopSwi
         }
 }
 
-// <for-init> ::= <declaration> | [ <exp> ] ";"
-fn parse_for_init(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<ForInit, Error> {
-        if let Ok(declaration) = parse_declaration(tokens, ptr) {
-                return Ok(ForInit::D(declaration));
+// <for-init> ::= <variable_declaration> | [ <exp> ] ";"
+fn parse_for_init(tokens: &[Token], ptr: &mut usize) -> Result<ForInit, Error> {
+        if let Ok(variable) = parse_variable_declaration(tokens, ptr) {
+                return Ok(ForInit::D(Declaration::V(variable)));
         }
+
         let mut expression = None;
         if let Ok(expr) = parse_expression(tokens, ptr, 0) {
                 expression = Some(expr);
@@ -255,8 +293,22 @@ pub static ASSIGNBINOP: [Binop; 12] = [
 ];
 
 // <exp> ::= <factor> | <exp> <binop> <exp> | <exp> "?" <exp> ":" <exp>
-fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
-        let mut left = AExpression::F(parse_factor(tokens, ptr)?);
+// <identifier> "(" [ <argument-list> ] ")"
+fn parse_expression(tokens: &[Token], ptr: &mut usize, min_precedence: usize) -> Result<AExpression, Error> {
+        let mut left;
+
+        if let Ok(aidentifier) = parse_identifier(tokens, ptr) {
+                if is_token(tokens, TokenType::OpenParen, ptr).is_ok() {
+                        let arg_list = parse_call_list(tokens, ptr);
+
+                        return Ok(AExpression::FunctionCall(aidentifier, arg_list));
+                }
+
+                left = AExpression::F(AFactor::Id(aidentifier));
+        } else {
+                left = AExpression::F(parse_factor(tokens, ptr)?);
+        }
+
         while let Some(operator) = parse_binary_operator(tokens, ptr) {
                 let operator_precedence = binary_operator_precedence(operator);
 
@@ -291,8 +343,27 @@ fn parse_expression(tokens: &mut Vec<Token>, ptr: &mut usize, min_precedence: us
         Ok(left)
 }
 
+// <argument-list> ::= <exp> { "," <exp> }
+fn parse_call_list(tokens: &[Token], ptr: &mut usize) -> Option<Vec<AExpression>> {
+        let mut params = vec![];
+
+        while let Ok(expr) = parse_expression(tokens, ptr, 0) {
+                params.push(expr);
+
+                if is_token(tokens, TokenType::Comma, ptr).is_err() {
+                        break;
+                }
+        }
+
+        if params.is_empty() {
+                None
+        } else {
+                Some(params)
+        }
+}
+
 // <factor> ::= <identifier> | <int> | "(" <exp> ")" | <unop> <factor> | <factor> <unop> (postfix in/decrement)
-fn parse_factor(tokens: &mut Vec<Token>, ptr: &mut usize) -> Result<AFactor, Error> {
+fn parse_factor(tokens: &[Token], ptr: &mut usize) -> Result<AFactor, Error> {
         let postfix_unop = |f: Token| match f.token_type {
                 TokenType::DoubleMinus => Some(Unop::DecrementPost),
                 TokenType::DoublePlus => Some(Unop::IncrementPost),

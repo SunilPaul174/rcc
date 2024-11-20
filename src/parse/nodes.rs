@@ -2,13 +2,7 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 pub struct AProgram {
-        pub functions: Vec<AFunction>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AFunction {
-        pub identifier: AIdentifier,
-        pub function_body: ABlock,
+        pub functions: Vec<FunctionDeclaration>,
 }
 
 #[derive(Debug, Clone)]
@@ -25,7 +19,20 @@ pub enum BlockItem {
         S(AStatement),
 }
 #[derive(Debug, Clone)]
-pub struct Declaration {
+pub enum Declaration {
+        V(VariableDeclaration),
+        F(FunctionDeclaration),
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionDeclaration {
+        pub name: AIdentifier,
+        pub params: Option<Vec<AIdentifier>>,
+        pub body: Option<ABlock>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VariableDeclaration {
         pub id: AIdentifier,
         pub init: Option<AExpression>,
 }
@@ -101,6 +108,7 @@ pub enum AExpression {
         Assignment(Box<AExpression>, Box<AExpression>),
         OpAssignment(Binop, Box<AExpression>, Box<AExpression>),
         C(Conditional),
+        FunctionCall(AIdentifier, Option<Vec<AExpression>>),
 }
 #[derive(Debug, Clone)]
 pub struct Conditional {
@@ -116,6 +124,7 @@ impl Display for AExpression {
                         AExpression::Assignment(left, right) => write!(f, "left: {left:?}, right: {right:?}"),
                         AExpression::C(Conditional { condition, True, False }) => write!(f, "condition: {condition}, True: {True}, False: {False}"),
                         AExpression::OpAssignment(binop, left, right) => write!(f, "operator: {binop:?}, left: {left}, right: {right}"),
+                        AExpression::FunctionCall(aidentifier, vec) => todo!(),
                 }
         }
 }

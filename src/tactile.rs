@@ -316,7 +316,7 @@ fn emit_tactile_statement<'b, 'a: 'b, S: BuildHasher>(
 
                                 emit_tactile_statement(code, *then, instructions, max_id, max_label, identifier_map, labels, scope + 1);
 
-                                identifier_map.retain(|&(_, b), _| b <= scope);
+                                identifier_map.retain(|&(_, f), _| f <= scope);
 
                                 instructions.push(TACTILEInstruction::L(end));
 
