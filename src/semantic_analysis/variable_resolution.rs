@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-        parse::nodes::{ABlock, AExpression, AFactor, AIdentifier, AProgram, AStatement, BlockItem, Conditional, Declaration, ForInit, IfStatement, Switch, Unop},
+        parse::nodes::{ABlock, AExpression, AFactor, AIdentifier, AProgram, AStatement, BlockItem, Conditional, Declaration, ForInit, IfStatement, Switch, Unop, VariableDeclaration},
         tactile::Identifier,
 };
 
@@ -12,10 +12,12 @@ pub fn resolve_variables<'b, 'a: 'b>(code: &'a [u8], program: &AProgram) -> Resu
         let mut variable_map = HashMap::new();
 
         for i in &program.functions {
-                for j in &i.function_body.0 {
-                        match j {
-                                BlockItem::D(declaration) => resolve_declaration(code, declaration, &mut variable_map, &mut global_max_identifier, 0)?,
-                                BlockItem::S(astatement) => resolve_statement(code, astatement, &mut variable_map, &mut global_max_identifier, 0)?,
+                if let Some(body) = &i.body {
+                        for j in &body.0 {
+                                match j {
+                                        BlockItem::D(declaration) => resolve_declaration(code, declaration, &mut variable_map, &mut global_max_identifier, 0)?,
+                                        BlockItem::S(astatement) => resolve_statement(code, astatement, &mut variable_map, &mut global_max_identifier, 0)?,
+                                }
                         }
                 }
         }
@@ -26,6 +28,16 @@ pub fn resolve_variables<'b, 'a: 'b>(code: &'a [u8], program: &AProgram) -> Resu
 fn resolve_declaration<'b, 'a: 'b>(
         code: &'a [u8],
         declaration: &Declaration,
+        variable_map: &mut HashMap<(&'b [u8], usize), Identifier>,
+        global_max_identifier: &mut usize,
+        scope: usize,
+) -> Result<(), Error> {
+        todo!()
+}
+
+fn resolve_variable_declaration<'b, 'a: 'b>(
+        code: &'a [u8],
+        declaration: &VariableDeclaration,
         variable_map: &mut HashMap<(&'b [u8], usize), Identifier>,
         global_max_identifier: &mut usize,
         scope: usize,
@@ -101,7 +113,7 @@ fn resolve_statement<'b, 'a: 'b>(
                         let header_scope = scope + 1;
 
                         match &boxed_for.init {
-                                ForInit::D(declaration) => resolve_declaration(code, declaration, variable_map, max_identifier, header_scope)?,
+                                ForInit::D(declaration) => resolve_variable_declaration(code, declaration, variable_map, max_identifier, header_scope)?,
                                 ForInit::E(Some(aexpression)) => resolve_exp(code, aexpression, variable_map, header_scope)?,
                                 ForInit::E(None) => {}
                         }
@@ -162,6 +174,7 @@ fn resolve_exp(code: &[u8], expr: &AExpression, variable_map: &mut HashMap<(&[u8
                         is_valid_lvalue_assignment(code, left, variable_map, scope)?;
                         resolve_exp(code, right, variable_map, scope)
                 }
+                AExpression::FunctionCall(aidentifier, vec) => todo!(),
         }
 }
 
@@ -177,6 +190,7 @@ fn is_valid_lvalue_assignment(code: &[u8], left: &AExpression, variable_map: &mu
                         resolve_exp(code, right, variable_map, scope)
                 }
                 AExpression::C(_) | AExpression::BinOp(..) | AExpression::OpAssignment(..) => Err(Error::InvalidLValueExpr(left.clone())),
+                AExpression::FunctionCall(aidentifier, vec) => todo!(),
         }
 }
 
@@ -203,13 +217,12 @@ fn is_valid_lvalue_unop(code: &[u8], unop: Unop, factor: AFactor, variable_map: 
                                 AExpression::BinOp(_binop, left, right) => {
                                         match unop {
                                                 Unop::Negate | Unop::Complement | Unop::Not => {}
-                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => {
-                                                        return Err(Error::InvalidLValueFactor(factor))
-                                                }
+                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => return Err(Error::InvalidLValueFactor(factor)),
                                         }
                                         resolve_exp(code, &left, variable_map, scope)?;
                                         resolve_exp(code, &right, variable_map, scope)
                                 }
+                                AExpression::FunctionCall(aidentifier, vec) => todo!(),
                         }
                 }
                 AFactor::Id(aidentifier) => variable_exists(code, &aidentifier, variable_map, scope),

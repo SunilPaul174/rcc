@@ -83,7 +83,7 @@ pub struct For {
 }
 #[derive(Debug, Clone)]
 pub enum ForInit {
-        D(Declaration),
+        D(VariableDeclaration),
         E(Option<AExpression>),
 }
 
