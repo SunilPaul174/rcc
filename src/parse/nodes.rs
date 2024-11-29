@@ -124,7 +124,7 @@ impl Display for AExpression {
                         AExpression::Assignment(left, right) => write!(f, "left: {left:?}, right: {right:?}"),
                         AExpression::C(Conditional { condition, True, False }) => write!(f, "condition: {condition}, True: {True}, False: {False}"),
                         AExpression::OpAssignment(binop, left, right) => write!(f, "operator: {binop:?}, left: {left}, right: {right}"),
-                        AExpression::FunctionCall(aidentifier, vec) => todo!(),
+                        AExpression::FunctionCall(aidentifier, _) => write!(f, "identifier: {aidentifier:?}"),
                 }
         }
 }

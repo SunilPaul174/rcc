@@ -31,7 +31,7 @@ fn main() {
                 return;
         }
         let code = res.state.code;
-        let (semanal, max_label, variable_map) = analyze(res.state.program, &code).unwrap_or_else(|f| {
+        let (variable_map, semanal, max_label) = analyze(res.state.program, &code).unwrap_or_else(|f| {
                 eprintln!("{f}");
                 exit(1);
         });

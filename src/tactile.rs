@@ -2,8 +2,8 @@ use std::{collections::HashMap, hash::BuildHasher};
 
 use crate::{
         parse::nodes::{
-                ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit, IfStatement,
-                ParseLabel, Switch, Unop, VariableDeclaration,
+                ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, For, ForInit, IfStatement, ParseLabel, Switch,
+                Unop, VariableDeclaration,
         },
         semantic_analysis::SemanticallyAnalyzed,
         Program, State,
@@ -90,7 +90,7 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
         instructions: &mut Vec<TACTILEInstruction>,
         max_id: &mut usize,
         max_label: &mut usize,
-        identifier_map: &mut HashMap<(&'b [u8], usize), Identifier, S>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool), S>,
         scope: usize,
 ) -> Value {
         match value {
@@ -175,13 +175,13 @@ fn emit_tactile_expr<'b, 'a: 'b, S: BuildHasher>(
                         let mut potential = identifier_map.keys().filter(|(f, _)| *f == name).peekable();
 
                         if potential.peek().is_none() {
-                                let entered = identifier_map.entry((name, scope)).insert_entry(new_id(max_id));
-                                return Value::Var(*entered.get());
+                                let entered = identifier_map.entry((name, scope)).insert_entry((new_id(max_id), false));
+                                return Value::Var(entered.get().0);
                         }
 
                         let max = potential.max_by_key(|f| f.1).unwrap();
 
-                        Value::Var(*identifier_map.get(max).unwrap())
+                        Value::Var(identifier_map.get(max).unwrap().0)
                 }
                 AExpression::OpAssignment(binop, left, right) => {
                         let left = emit_tactile_expr(code, *left, instructions, max_id, max_label, identifier_map, scope);
@@ -215,7 +215,7 @@ fn tactile_program<'b, 'a: 'b, S: BuildHasher>(
         program: AProgram,
         code: &'a [u8],
         max_label: &mut usize,
-        mut identifier_map: HashMap<(&'b [u8], usize), Identifier, S>,
+        mut identifier_map: HashMap<(&'b [u8], usize), (Identifier, bool), S>,
 ) -> TACTILEProgram {
         let value = program.functions;
         let mut global_max_identifier = 1;
@@ -243,7 +243,7 @@ fn tactile_block_item<'b, 'a: 'b, S: BuildHasher>(
         instructions: &mut Vec<TACTILEInstruction>,
         global_max_identifier: &mut usize,
         max_label: &mut usize,
-        identifier_map: &mut HashMap<(&'b [u8], usize), Identifier, S>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool), S>,
         scope: usize,
         loop_labels: &mut Vec<TACTILELabel>,
 ) {
@@ -274,7 +274,7 @@ fn emit_tactile_statement<'b, 'a: 'b, S: BuildHasher>(
         instructions: &mut Vec<TACTILEInstruction>,
         max_id: &mut usize,
         max_label: &mut usize,
-        identifier_map: &mut HashMap<(&'b [u8], usize), Identifier, S>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool), S>,
         labels: &mut Vec<TACTILELabel>,
         scope: usize,
 ) {
@@ -493,7 +493,12 @@ fn emit_tactile_statement<'b, 'a: 'b, S: BuildHasher>(
         }
 }
 
-pub fn tactile<S: BuildHasher>(program: Program<SemanticallyAnalyzed>, mut max_label: usize, identifier_map: HashMap<(&[u8], usize), Identifier, S>, code: &[u8]) -> Program<TACTILE> {
+pub fn tactile<S: BuildHasher>(
+        program: Program<SemanticallyAnalyzed>,
+        mut max_label: usize,
+        identifier_map: HashMap<(&[u8], usize), (Identifier, bool), S>,
+        code: &[u8],
+) -> Program<TACTILE> {
         Program {
                 operation: program.operation,
                 state: TACTILE {

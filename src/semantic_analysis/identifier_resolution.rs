@@ -1,46 +1,44 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::BuildHasher};
 
 use crate::{
         parse::nodes::{
-                ABlock, AExpression, AFactor, AIdentifier, AProgram, AStatement, BlockItem, Conditional, Declaration, ForInit, FunctionDeclaration, IfStatement, Switch, Unop,
-                VariableDeclaration,
+                ABlock, AExpression, AFactor, AIdentifier, AProgram, AStatement, BlockItem, Conditional, Declaration, ForInit, FunctionDeclaration, IfStatement, Switch,
+                Unop, VariableDeclaration,
         },
         tactile::Identifier,
 };
 
-use super::Error;
+use super::{Error, IdentifierMap};
 
-pub fn resolve_identifiers<'b, 'a: 'b>(code: &'a [u8], program: &AProgram) -> Result<HashMap<(&'b [u8], usize), (Identifier, bool)>, Error> {
+pub fn resolve_identifiers<'b, 'a: 'b>(code: &'a [u8], program: &AProgram) -> Result<IdentifierMap<'b>, Error> {
         let mut global_max_identifier = 0;
         let mut identifier_map = HashMap::new();
 
         for i in &program.functions {
-                if let Some(body) = &i.body {
-                        for j in &body.0 {
-                                resolve_block_item(j, code, &mut identifier_map, &mut global_max_identifier)?;
-                        }
-                }
+                () = resolve_function_declaration(code, i, &mut identifier_map, &mut global_max_identifier, 0)?;
         }
 
         Ok(identifier_map)
 }
 
-fn resolve_block_item<'b, 'a: 'b>(
+fn resolve_block_item<'b, 'a: 'b, S: BuildHasher>(
         block_item: &BlockItem,
         code: &'a [u8],
-        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool)>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool), S>,
         global_max_identifier: &mut usize,
+        scope: usize,
 ) -> Result<(), Error> {
-        Ok(match block_item {
-                BlockItem::D(declaration) => resolve_declaration(code, declaration, identifier_map, global_max_identifier, 0)?,
-                BlockItem::S(astatement) => resolve_statement(code, astatement, identifier_map, global_max_identifier, 0)?,
-        })
+        match block_item {
+                BlockItem::D(declaration) => resolve_declaration(code, declaration, identifier_map, global_max_identifier, scope)?,
+                BlockItem::S(astatement) => resolve_statement(code, astatement, identifier_map, global_max_identifier, scope)?,
+        };
+        Ok(())
 }
 
-fn resolve_declaration<'b, 'a: 'b>(
+fn resolve_declaration<'b, 'a: 'b, S: BuildHasher>(
         code: &'a [u8],
         declaration: &Declaration,
-        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool)>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool), S>,
         global_max_identifier: &mut usize,
         scope: usize,
 ) -> Result<(), Error> {
@@ -50,59 +48,51 @@ fn resolve_declaration<'b, 'a: 'b>(
         }
 }
 
-fn resolve_function_declaration<'b, 'a: 'b>(
+fn resolve_function_declaration<'b, 'a: 'b, S: BuildHasher>(
         code: &'a [u8],
         declaration: &FunctionDeclaration,
-        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool)>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool), S>,
         global_max_identifier: &mut usize,
         scope: usize,
 ) -> Result<(), Error> {
         let AIdentifier { start, len } = declaration.name;
         let name = &code[start..start + len];
         if identifier_exists(code, &declaration.name, identifier_map, scope).is_ok() {
-                if let Some(curr_scope) = identifier_map.get(&(name, scope)) {
-                        if !curr_scope.1 {
+                if let Some(curr_scope_reference) = identifier_map.get(&(name, scope)) {
+                        if !curr_scope_reference.1 {
                                 return Err(Error::DeclaredTwice(String::from_utf8(name.to_vec()).unwrap(), start + len));
                         }
                 }
         };
 
-        identifier_map.entry((name, scope)).insert_entry((
-                {
-                        let temp = Identifier(*global_max_identifier);
-                        *global_max_identifier += 1;
-                        temp
-                },
-                true,
-        ));
+        identifier_map.entry((name, scope)).insert_entry((new_id(global_max_identifier), true));
 
         if let Some(thing) = &declaration.params {
                 for i in thing {
                         let AIdentifier { start, len } = *i;
                         let name = &code[start..start + len];
-                        if identifier_map.get(&(name, scope)).is_some() {
+                        if identifier_map.get(&(name, scope + 1)).is_some() {
                                 return Err(Error::DeclaredTwice(String::from_utf8(name.to_vec()).unwrap(), start));
                         }
-                        let temp = *global_max_identifier;
-                        *global_max_identifier += 1;
-
-                        identifier_map.entry((name, scope)).insert_entry((Identifier(temp), false));
+                        identifier_map.entry((name, scope + 1)).insert_entry((new_id(global_max_identifier), false));
                 }
         }
 
         if let Some(body) = &declaration.body {
                 for i in &body.0 {
-                        resolve_block_item(i, code, identifier_map, global_max_identifier)?
+                        resolve_block_item(i, code, identifier_map, global_max_identifier, scope + 2)?
                 }
         }
+
+        identifier_map.retain(|&(_, f), _| f < (scope + 1));
 
         Ok(())
 }
 
-fn resolve_variable_declaration<'b, 'a: 'b>(
+fn resolve_variable_declaration<'b, 'a: 'b, S: BuildHasher>(
         code: &'a [u8],
         declaration: &VariableDeclaration,
-        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool)>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool), S>,
         global_max_identifier: &mut usize,
         scope: usize,
 ) -> Result<(), Error> {
@@ -111,10 +101,7 @@ fn resolve_variable_declaration<'b, 'a: 'b>(
         if identifier_map.get(&(name, scope)).is_some() {
                 return Err(Error::DeclaredTwice(String::from_utf8(name.to_vec()).unwrap(), start));
         }
-        let temp = *global_max_identifier;
-        *global_max_identifier += 1;
-
-        identifier_map.entry((name, scope)).insert_entry((Identifier(temp), false));
+        identifier_map.entry((name, scope)).insert_entry((new_id(global_max_identifier), false));
 
         if let Some(extract) = &declaration.init {
                 () = resolve_exp(code, extract, identifier_map, scope)?;
@@ -123,10 +110,10 @@ fn resolve_variable_declaration<'b, 'a: 'b>(
         Ok(())
 }
 
-fn resolve_statement<'b, 'a: 'b>(
+fn resolve_statement<'b, 'a: 'b, S: BuildHasher>(
         code: &'a [u8],
         statement: &AStatement,
-        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool)>,
+        identifier_map: &mut HashMap<(&'b [u8], usize), (Identifier, bool), S>,
         max_identifier: &mut usize,
         scope: usize,
 ) -> Result<(), Error> {
@@ -153,23 +140,25 @@ fn resolve_statement<'b, 'a: 'b>(
                                 }
                         }
 
-                        identifier_map.retain(|(_, scope), _| scope != &inner_scope);
+                        identifier_map.retain(|(_, f), _| f != &inner_scope);
 
                         Ok(())
                 }
                 AStatement::While(aexpression, astatement, _) => {
                         () = resolve_exp(code, aexpression, identifier_map, scope + 1)?;
                         () = resolve_statement(code, astatement, identifier_map, max_identifier, scope + 2)?;
-                        identifier_map.retain(|(_, scope), _| scope != &(scope + 2));
-                        identifier_map.retain(|(_, scope), _| scope != &(scope + 1));
+                        // identifier_map.retain(|(_, scope), _| scope != &(scope + 2));
+                        // identifier_map.retain(|(_, scope), _| scope != &(scope + 1));
+                        identifier_map.retain(|&(_, f), _| f < (scope + 1));
 
                         Ok(())
                 }
                 AStatement::DoWhile(astatement, aexpression, _) => {
                         () = resolve_exp(code, aexpression, identifier_map, scope + 1)?;
                         () = resolve_statement(code, astatement, identifier_map, max_identifier, scope + 2)?;
-                        identifier_map.retain(|(_, scope), _| scope != &(scope + 2));
-                        identifier_map.retain(|(_, scope), _| scope != &(scope + 1));
+                        // identifier_map.retain(|(_, scope), _| scope != &(scope + 2));
+                        // identifier_map.retain(|(_, scope), _| scope != &(scope + 1));
+                        identifier_map.retain(|&(_, f), _| f < (scope + 1));
 
                         Ok(())
                 }
@@ -192,8 +181,9 @@ fn resolve_statement<'b, 'a: 'b>(
                         let body_scope = header_scope + 1;
                         () = resolve_statement(code, &boxed_for.body, identifier_map, max_identifier, body_scope)?;
 
-                        identifier_map.retain(|(_, scope), _| scope != &header_scope);
-                        identifier_map.retain(|(_, scope), _| scope != &body_scope);
+                        // identifier_map.retain(|(_, scope), _| scope != &header_scope);
+                        // identifier_map.retain(|(_, scope), _| scope != &body_scope);
+                        identifier_map.retain(|(_, scope), _| *scope < (*scope + 1));
 
                         Ok(())
                 }
@@ -213,7 +203,7 @@ fn resolve_statement<'b, 'a: 'b>(
         }
 }
 
-fn resolve_exp(code: &[u8], expr: &AExpression, identifier_map: &mut HashMap<(&[u8], usize), (Identifier, bool)>, scope: usize) -> Result<(), Error> {
+fn resolve_exp<S: BuildHasher>(code: &[u8], expr: &AExpression, identifier_map: &mut HashMap<(&[u8], usize), (Identifier, bool), S>, scope: usize) -> Result<(), Error> {
         match expr {
                 AExpression::F(afactor) => match afactor {
                         AFactor::Expr(aexpression) => resolve_exp(code, aexpression, identifier_map, scope),
@@ -239,10 +229,9 @@ fn resolve_exp(code: &[u8], expr: &AExpression, identifier_map: &mut HashMap<(&[
                         resolve_exp(code, right, identifier_map, scope)
                 }
                 AExpression::FunctionCall(aidentifier, vec) => {
-                        let AIdentifier { start, len } = *aidentifier;
-                        let name = &code[start..start + len];
-
-                        if identifier_map.get(&(name, scope)).is_none() {
+                        if identifier_exists(code, aidentifier, identifier_map, scope).is_err() {
+                                let &AIdentifier { start, len } = aidentifier;
+                                let name = &code[start..start + len];
                                 return Err(Error::UndeclaredIdentifier(String::from_utf8(name.to_vec()).unwrap(), start + len));
                         }
 
@@ -257,7 +246,12 @@ fn resolve_exp(code: &[u8], expr: &AExpression, identifier_map: &mut HashMap<(&[
         }
 }
 
-fn is_valid_lvalue_assignment(code: &[u8], left: &AExpression, identifier_map: &mut HashMap<(&[u8], usize), (Identifier, bool)>, scope: usize) -> Result<(), Error> {
+fn is_valid_lvalue_assignment<S: BuildHasher>(
+        code: &[u8],
+        left: &AExpression,
+        identifier_map: &mut HashMap<(&[u8], usize), (Identifier, bool), S>,
+        scope: usize,
+) -> Result<(), Error> {
         match left {
                 AExpression::F(afactor) => match afactor {
                         AFactor::Expr(expr) => is_valid_lvalue_assignment(code, expr, identifier_map, scope),
@@ -268,12 +262,17 @@ fn is_valid_lvalue_assignment(code: &[u8], left: &AExpression, identifier_map: &
                         resolve_exp(code, left, identifier_map, scope)?;
                         resolve_exp(code, right, identifier_map, scope)
                 }
-                AExpression::C(_) | AExpression::BinOp(..) | AExpression::OpAssignment(..) => Err(Error::InvalidLValueExpr(left.clone())),
-                AExpression::FunctionCall(aidentifier, vec) => todo!(),
+                AExpression::C(_) | AExpression::BinOp(..) | AExpression::OpAssignment(..) | AExpression::FunctionCall(..) => Err(Error::InvalidLValueExpr(left.clone())),
         }
 }
 
-fn is_valid_lvalue_unop(code: &[u8], unop: Unop, factor: AFactor, identifier_map: &mut HashMap<(&[u8], usize), (Identifier, bool)>, scope: usize) -> Result<(), Error> {
+fn is_valid_lvalue_unop<S: BuildHasher>(
+        code: &[u8],
+        unop: Unop,
+        factor: AFactor,
+        identifier_map: &mut HashMap<(&[u8], usize), (Identifier, bool), S>,
+        scope: usize,
+) -> Result<(), Error> {
         match factor.clone() {
                 AFactor::Constant(_) => match unop {
                         Unop::Negate | Unop::Complement | Unop::Not => Ok(()),
@@ -292,31 +291,47 @@ fn is_valid_lvalue_unop(code: &[u8], unop: Unop, factor: AFactor, identifier_map
                         resolve_exp(code, &aexpression, identifier_map, scope)?;
                         match *aexpression {
                                 AExpression::F(afactor) => is_valid_lvalue_unop(code, unop, afactor, identifier_map, scope),
-                                AExpression::Assignment(..) | AExpression::C(_) | AExpression::OpAssignment(..) => Err(Error::InvalidLValueExpr(*aexpression)),
                                 AExpression::BinOp(_binop, left, right) => {
                                         match unop {
                                                 Unop::Negate | Unop::Complement | Unop::Not => {}
-                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => return Err(Error::InvalidLValueFactor(factor)),
+                                                Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => {
+                                                        return Err(Error::InvalidLValueFactor(factor))
+                                                }
                                         }
                                         resolve_exp(code, &left, identifier_map, scope)?;
                                         resolve_exp(code, &right, identifier_map, scope)
                                 }
-                                AExpression::FunctionCall(aidentifier, vec) => todo!(),
+                                AExpression::Assignment(..) | AExpression::C(_) | AExpression::OpAssignment(..) => Err(Error::InvalidLValueExpr(*aexpression)),
+                                AExpression::FunctionCall(..) => match unop {
+                                        Unop::Negate | Unop::Complement | Unop::Not => Ok(()),
+                                        Unop::IncrementPre | Unop::IncrementPost | Unop::DecrementPre | Unop::DecrementPost => Err(Error::InvalidLValueFactor(factor)),
+                                },
                         }
                 }
                 AFactor::Id(aidentifier) => identifier_exists(code, &aidentifier, identifier_map, scope).map(|_| ()),
         }
 }
 
-fn identifier_exists(code: &[u8], aidentifier: &AIdentifier, identifier_map: &mut HashMap<(&[u8], usize), (Identifier, bool)>, scope: usize) -> Result<(Identifier, bool), Error> {
+fn identifier_exists<S: BuildHasher>(
+        code: &[u8],
+        aidentifier: &AIdentifier,
+        identifier_map: &mut HashMap<(&[u8], usize), (Identifier, bool), S>,
+        scope: usize,
+) -> Result<(Identifier, bool), Error> {
         let &AIdentifier { start, len } = aidentifier;
         let name = &code[start..start + len];
 
         for i in 0..=scope {
-                if let Some(thing) = identifier_map.get(&(name, i)) {
-                        return Ok(*thing);
+                if let Some(&thing) = identifier_map.get(&(name, i)) {
+                        return Ok(thing);
                 }
         }
 
         Err(Error::UndeclaredIdentifier(String::from_utf8(name.to_vec()).unwrap(), start))
+}
+
+fn new_id(max_identifier: &mut usize) -> Identifier {
+        let temp = Identifier(*max_identifier);
+        *max_identifier += 1;
+        temp
 }
