@@ -1,6 +1,6 @@
 use nodes::{
-        ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit, FunctionDeclaration,
-        IfStatement, LoopSwitchOrNone, ParseLabel, Switch, Unop, VariableDeclaration,
+        ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit,
+        FunctionDeclaration, IfStatement, LoopSwitchOrNone, ParseLabel, Switch, Unop, VariableDeclaration,
 };
 use thiserror::Error;
 
@@ -96,9 +96,13 @@ fn parse_function_declaration(tokens: &[Token], ptr: &mut usize) -> Result<Optio
         }
 
         is_token(tokens, TokenType::Int, ptr)?;
+
         let name = parse_identifier(tokens, ptr)?;
+
         is_token(tokens, TokenType::OpenParen, ptr)?;
+
         let params = parse_param_list(tokens, ptr)?;
+
         is_token(tokens, TokenType::CloseParen, ptr)?;
 
         let mut body = None;

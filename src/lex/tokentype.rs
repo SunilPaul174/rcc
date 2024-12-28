@@ -72,7 +72,11 @@ pub struct Token {
 
 impl Display for Token {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}, starting at {}, with length {}", self.token_type, self.start, self.len)
+                write!(
+                        f,
+                        "{}, starting at {}, with length {}",
+                        self.token_type, self.start, self.len
+                )
         }
 }
 impl Display for TokenType {

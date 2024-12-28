@@ -8,7 +8,7 @@ pub struct AProgram {
 #[derive(Debug, Clone)]
 pub struct ABlock(pub Vec<BlockItem>);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AIdentifier {
         pub start: usize,
         pub len: usize,
