@@ -1,10 +1,12 @@
 use crate::{
         parse::nodes::{AIdentifier, Binop},
-        tactile::{Constant, Label},
+        tactile::tree::{Constant, Label},
 };
 
 impl From<Constant> for Operand {
-        fn from(value: Constant) -> Self { Operand::Imm(value) }
+        fn from(value: Constant) -> Self {
+                Operand::Imm(value)
+        }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -25,7 +27,9 @@ pub enum Register {
         R11,
 }
 impl From<Register> for Operand {
-        fn from(value: Register) -> Self { Operand::Register(value) }
+        fn from(value: Register) -> Self {
+                Operand::Register(value)
+        }
 }
 
 #[derive(Debug, Clone, Copy)]

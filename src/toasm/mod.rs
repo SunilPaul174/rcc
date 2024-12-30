@@ -1,6 +1,6 @@
 use crate::{
         parse::nodes::{Binop, Unop},
-        tactile::{Constant, TACTILEFunction, TACTILEInstruction, Value, TACTILE},
+        tactile::{tree::Constant, tree::TACTILEInstruction, tree::Value, TACTILEFunctionDefinition, TACTILE},
         State,
 };
 use nodes::{ASMBinary, ASMFunction, ASMInstruction, ASMProgram, ASMUnary, CondCode, Operand, Register};
@@ -31,17 +31,18 @@ fn val_to_op(value: Value) -> Operand {
         }
 }
 
-impl From<TACTILEFunction> for ASMFunction {
-        fn from(value: TACTILEFunction) -> Self {
+impl From<TACTILEFunctionDefinition> for ASMFunction {
+        fn from(value: TACTILEFunctionDefinition) -> Self {
                 let identifier = value.identifier;
                 let mut temp_instructions = vec![];
 
                 temp_instructions.push(ASMInstruction::AllocateStack(0));
 
-                let from_tactile = |&value| match value {
-                        TACTILEInstruction::Return(val) => {
-                                temp_instructions.extend([ASMInstruction::Mov(val_to_op(val), Operand::Register(Register::AX)), ASMInstruction::Ret])
-                        }
+                let from_tactile = |value: &TACTILEInstruction| match value {
+                        TACTILEInstruction::Return(val) => temp_instructions.extend([
+                                ASMInstruction::Mov(val_to_op(*val), Operand::Register(Register::AX)),
+                                ASMInstruction::Ret,
+                        ]),
                         TACTILEInstruction::Unary(unop, src, dst) => {
                                 let op = match unop {
                                         Unop::Negate => ASMUnary::Negate,
@@ -51,72 +52,75 @@ impl From<TACTILEFunction> for ASMFunction {
                                         Unop::DecrementPre | Unop::DecrementPost => ASMUnary::Decrement,
                                 };
 
-                                temp_instructions.extend([ASMInstruction::Mov(val_to_op(src), val_to_op(dst)), ASMInstruction::Unary(op, val_to_op(dst))]);
+                                temp_instructions.extend([
+                                        ASMInstruction::Mov(val_to_op(*src), val_to_op(*dst)),
+                                        ASMInstruction::Unary(op, val_to_op(*dst)),
+                                ]);
                         }
 
                         TACTILEInstruction::Binary(binop, src1, src2, mut dst) => match binop {
                                 Binop::Divide => temp_instructions.extend([
-                                        ASMInstruction::Mov(val_to_op(src1), Operand::Register(Register::AX)),
+                                        ASMInstruction::Mov(val_to_op(*src1), Operand::Register(Register::AX)),
                                         ASMInstruction::Cdq,
-                                        ASMInstruction::IDiv(val_to_op(src2)),
+                                        ASMInstruction::IDiv(val_to_op(*src2)),
                                         ASMInstruction::Mov(Operand::Register(Register::AX), val_to_op(dst)),
                                 ]),
                                 Binop::DivideAssign => {
-                                        dst = src1;
+                                        dst = *src1;
                                         temp_instructions.extend([
-                                                ASMInstruction::Mov(val_to_op(src1), Operand::Register(Register::AX)),
+                                                ASMInstruction::Mov(val_to_op(*src1), Operand::Register(Register::AX)),
                                                 ASMInstruction::Cdq,
-                                                ASMInstruction::IDiv(val_to_op(src2)),
+                                                ASMInstruction::IDiv(val_to_op(*src2)),
                                                 ASMInstruction::Mov(Operand::Register(Register::AX), val_to_op(dst)),
                                         ]);
                                 }
                                 Binop::Remainder => temp_instructions.extend([
-                                        ASMInstruction::Mov(val_to_op(src1), Operand::Register(Register::AX)),
+                                        ASMInstruction::Mov(val_to_op(*src1), Operand::Register(Register::AX)),
                                         ASMInstruction::Cdq,
-                                        ASMInstruction::IDiv(val_to_op(src2)),
+                                        ASMInstruction::IDiv(val_to_op(*src2)),
                                         ASMInstruction::Mov(Operand::Register(Register::DX), val_to_op(dst)),
                                 ]),
                                 Binop::RemainderAssign => {
-                                        dst = src1;
+                                        dst = *src1;
                                         temp_instructions.extend([
-                                                ASMInstruction::Mov(val_to_op(src1), Operand::Register(Register::AX)),
+                                                ASMInstruction::Mov(val_to_op(*src1), Operand::Register(Register::AX)),
                                                 ASMInstruction::Cdq,
-                                                ASMInstruction::IDiv(val_to_op(src2)),
+                                                ASMInstruction::IDiv(val_to_op(*src2)),
                                                 ASMInstruction::Mov(Operand::Register(Register::DX), val_to_op(dst)),
                                         ]);
                                 }
                                 Binop::MoreThan => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
+                                        ASMInstruction::Cmp(val_to_op(*src2), val_to_op(*src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::G, val_to_op(dst)),
                                 ]),
                                 Binop::MoreThanOrEqual => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
+                                        ASMInstruction::Cmp(val_to_op(*src2), val_to_op(*src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::GE, val_to_op(dst)),
                                 ]),
                                 Binop::EqualTo => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
+                                        ASMInstruction::Cmp(val_to_op(*src2), val_to_op(*src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::E, val_to_op(dst)),
                                 ]),
                                 Binop::NotEqualTo => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
+                                        ASMInstruction::Cmp(val_to_op(*src2), val_to_op(*src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::NE, val_to_op(dst)),
                                 ]),
                                 Binop::LessThan => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
+                                        ASMInstruction::Cmp(val_to_op(*src2), val_to_op(*src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::L, val_to_op(dst)),
                                 ]),
                                 Binop::LessThanOrEqual => temp_instructions.extend([
-                                        ASMInstruction::Cmp(val_to_op(src2), val_to_op(src1)),
+                                        ASMInstruction::Cmp(val_to_op(*src2), val_to_op(*src1)),
                                         ASMInstruction::Mov(Operand::Imm(Constant::S(0)), val_to_op(dst)),
                                         ASMInstruction::SetCC(CondCode::LE, val_to_op(dst)),
                                 ]),
                                 _ => {
-                                        let temp = ASMBinary::try_from(binop).expect("LOGICBUGGGG");
+                                        let temp = ASMBinary::try_from(*binop).expect("LOGICBUGGGG");
                                         match temp {
                                                 ASMBinary::AddAssign
                                                 | ASMBinary::SubtractAssign
@@ -126,7 +130,7 @@ impl From<TACTILEFunction> for ASMFunction {
                                                 | ASMBinary::BitwiseAndAssign
                                                 | ASMBinary::BitwiseOrAssign
                                                 | ASMBinary::BitwiseXOrAssign => {
-                                                        dst = src1;
+                                                        dst = *src1;
                                                 }
 
                                                 ASMBinary::Add
@@ -139,22 +143,29 @@ impl From<TACTILEFunction> for ASMFunction {
                                                 | ASMBinary::And => {}
                                         }
                                         temp_instructions.extend([
-                                                ASMInstruction::Mov(val_to_op(src1), val_to_op(dst)),
-                                                ASMInstruction::Binary(ASMBinary::try_from(binop).expect("LogicBUGGG"), val_to_op(src2), val_to_op(dst)),
+                                                ASMInstruction::Mov(val_to_op(*src1), val_to_op(dst)),
+                                                ASMInstruction::Binary(
+                                                        ASMBinary::try_from(*binop).expect("LogicBUGGG"),
+                                                        val_to_op(*src2),
+                                                        val_to_op(dst),
+                                                ),
                                         ]);
                                 }
                         },
-                        TACTILEInstruction::Jump(label) => temp_instructions.push(ASMInstruction::Jmp(label)),
-                        TACTILEInstruction::Copy(src, dst) => temp_instructions.push(ASMInstruction::Mov(val_to_op(src), val_to_op(dst))),
-                        TACTILEInstruction::L(label) => temp_instructions.push(ASMInstruction::Label(label)),
+                        TACTILEInstruction::Jump(label) => temp_instructions.push(ASMInstruction::Jmp(*label)),
+                        TACTILEInstruction::Copy(src, dst) => {
+                                temp_instructions.push(ASMInstruction::Mov(val_to_op(*src), val_to_op(*dst)))
+                        }
+                        TACTILEInstruction::L(label) => temp_instructions.push(ASMInstruction::Label(*label)),
                         TACTILEInstruction::JumpIfZero(value, label) => temp_instructions.extend([
-                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)),
-                                ASMInstruction::JmpCC(CondCode::E, label),
+                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(*value)),
+                                ASMInstruction::JmpCC(CondCode::E, *label),
                         ]),
                         TACTILEInstruction::JumpIfNotZero(value, label) => temp_instructions.extend([
-                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(value)),
-                                ASMInstruction::JmpCC(CondCode::NE, label),
+                                ASMInstruction::Cmp(Operand::Imm(Constant::S(0)), val_to_op(*value)),
+                                ASMInstruction::JmpCC(CondCode::NE, *label),
                         ]),
+                        TACTILEInstruction::F(function_call) => todo!(),
                 };
 
                 let mut stack_max: usize = 0;
@@ -170,36 +181,78 @@ impl From<TACTILEFunction> for ASMFunction {
 
                 instructions[0] = ASMInstruction::AllocateStack(stack_max);
 
-                ASMFunction { identifier, instructions }
+                ASMFunction {
+                        identifier,
+                        instructions,
+                }
         }
 }
 
 fn last_pass(i: ASMInstruction, instructions: &mut Vec<ASMInstruction>) {
         match i {
                 ASMInstruction::Mov(Operand::Stack(src), Operand::Stack(dest)) => {
-                        instructions.push(ASMInstruction::Mov(Operand::Stack(src), Operand::Register(Register::R10)));
-                        instructions.push(ASMInstruction::Mov(Operand::Register(Register::R10), Operand::Stack(dest)));
+                        instructions.push(ASMInstruction::Mov(
+                                Operand::Stack(src),
+                                Operand::Register(Register::R10),
+                        ));
+                        instructions.push(ASMInstruction::Mov(
+                                Operand::Register(Register::R10),
+                                Operand::Stack(dest),
+                        ));
                 }
                 ASMInstruction::IDiv(Operand::Imm(aconstant)) => {
-                        instructions.push(ASMInstruction::Mov(Operand::Imm(aconstant), Operand::Register(Register::R10)));
+                        instructions.push(ASMInstruction::Mov(
+                                Operand::Imm(aconstant),
+                                Operand::Register(Register::R10),
+                        ));
                         instructions.push(ASMInstruction::IDiv(Operand::Register(Register::R10)));
                 }
                 ASMInstruction::Binary(ASMBinary::Add, Operand::Stack(src), Operand::Stack(dst)) => {
-                        instructions.push(ASMInstruction::Mov(Operand::Stack(src), Operand::Register(Register::R10)));
-                        instructions.push(ASMInstruction::Binary(ASMBinary::Add, Operand::Register(Register::R10), Operand::Stack(dst)));
+                        instructions.push(ASMInstruction::Mov(
+                                Operand::Stack(src),
+                                Operand::Register(Register::R10),
+                        ));
+                        instructions.push(ASMInstruction::Binary(
+                                ASMBinary::Add,
+                                Operand::Register(Register::R10),
+                                Operand::Stack(dst),
+                        ));
                 }
                 ASMInstruction::Binary(ASMBinary::Subtract, Operand::Stack(src), Operand::Stack(dst)) => {
-                        instructions.push(ASMInstruction::Mov(Operand::Stack(src), Operand::Register(Register::R10)));
-                        instructions.push(ASMInstruction::Binary(ASMBinary::Subtract, Operand::Register(Register::R10), Operand::Stack(dst)));
+                        instructions.push(ASMInstruction::Mov(
+                                Operand::Stack(src),
+                                Operand::Register(Register::R10),
+                        ));
+                        instructions.push(ASMInstruction::Binary(
+                                ASMBinary::Subtract,
+                                Operand::Register(Register::R10),
+                                Operand::Stack(dst),
+                        ));
                 }
                 ASMInstruction::Binary(ASMBinary::Multiply, src, Operand::Stack(dst)) => {
-                        instructions.push(ASMInstruction::Mov(Operand::Stack(dst), Operand::Register(Register::R11)));
-                        instructions.push(ASMInstruction::Binary(ASMBinary::Multiply, src, Operand::Register(Register::R11)));
-                        instructions.push(ASMInstruction::Mov(Operand::Register(Register::R11), Operand::Stack(dst)));
+                        instructions.push(ASMInstruction::Mov(
+                                Operand::Stack(dst),
+                                Operand::Register(Register::R11),
+                        ));
+                        instructions.push(ASMInstruction::Binary(
+                                ASMBinary::Multiply,
+                                src,
+                                Operand::Register(Register::R11),
+                        ));
+                        instructions.push(ASMInstruction::Mov(
+                                Operand::Register(Register::R11),
+                                Operand::Stack(dst),
+                        ));
                 }
                 ASMInstruction::Cmp(Operand::Stack(op1), Operand::Stack(op2)) => {
-                        instructions.push(ASMInstruction::Mov(Operand::Stack(op1), Operand::Register(Register::R10)));
-                        instructions.push(ASMInstruction::Cmp(Operand::Register(Register::R10), Operand::Stack(op2)));
+                        instructions.push(ASMInstruction::Mov(
+                                Operand::Stack(op1),
+                                Operand::Register(Register::R10),
+                        ));
+                        instructions.push(ASMInstruction::Cmp(
+                                Operand::Register(Register::R10),
+                                Operand::Stack(op2),
+                        ));
                 }
                 ASMInstruction::Cmp(op1, Operand::Imm(op2)) => {
                         instructions.push(ASMInstruction::Mov(Operand::Imm(op2), Operand::Register(Register::R11)));
@@ -228,10 +281,14 @@ fn pseudo_pass(value: ASMInstruction, stack_max: &mut usize) -> ASMInstruction {
 
                         ASMInstruction::SetCC(left, right)
                 }
-                ASMInstruction::Unary(unop, operand) => ASMInstruction::Unary(unop, pseudo_to_stack_operand(operand, stack_max)),
-                ASMInstruction::Binary(binop, left, right) => {
-                        ASMInstruction::Binary(binop, pseudo_to_stack_operand(left, stack_max), pseudo_to_stack_operand(right, stack_max))
+                ASMInstruction::Unary(unop, operand) => {
+                        ASMInstruction::Unary(unop, pseudo_to_stack_operand(operand, stack_max))
                 }
+                ASMInstruction::Binary(binop, left, right) => ASMInstruction::Binary(
+                        binop,
+                        pseudo_to_stack_operand(left, stack_max),
+                        pseudo_to_stack_operand(right, stack_max),
+                ),
                 ASMInstruction::IDiv(left) => ASMInstruction::IDiv(pseudo_to_stack_operand(left, stack_max)),
                 _ => value,
         }

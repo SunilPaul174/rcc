@@ -1,6 +1,6 @@
 use crate::{
         parse::nodes::{AConstant, AIdentifier},
-        tactile::Constant,
+        tactile::tree::Constant,
         toasm::{
                 nodes::{ASMBinary, ASMFunction, ASMInstruction, ASMUnary, CondCode, Operand, Register},
                 Compiled,
@@ -62,7 +62,9 @@ pub static TEARDOWN: &[u8] = b"\tmovq %rbp, %rsp\n\tpopq %rbp\n\tret\n";
 // we hold the stack in the tactile stage as the number of variables on the stack. However, the all the variables are QWords, so you need to subtract from top of stack
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_possible_truncation)]
-fn the_real_stack(val: usize) -> i32 { -((val as i32 + 1) * 4) }
+fn the_real_stack(val: usize) -> i32 {
+        -((val as i32 + 1) * 4)
+}
 
 fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
         let mut instructions = Vec::new();
@@ -112,7 +114,11 @@ fn func_to_vec(function: ASMFunction, code: &[u8]) -> Vec<u8> {
         instructions
 }
 
-fn instruction_to_extension(i: ASMInstruction, instructions: &mut Vec<u8>, extend_from_operand: impl Fn(Operand, &mut Vec<u8>, bool)) {
+fn instruction_to_extension(
+        i: ASMInstruction,
+        instructions: &mut Vec<u8>,
+        extend_from_operand: impl Fn(Operand, &mut Vec<u8>, bool),
+) {
         match i {
                 ASMInstruction::Mov(src, dst) => {
                         instructions.extend_from_slice(b"\tmovl ");

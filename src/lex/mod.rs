@@ -66,7 +66,8 @@ impl BuildHasher for KeywordHash {
 type KeywordHasher = BuildHasherDefault<KeywordHash>;
 
 pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
-        let mut keyword_map: HashMap<&[u8], TokenType, KeywordHasher> = HashMap::with_capacity_and_hasher(3, BuildHasherDefault::default());
+        let mut keyword_map: HashMap<&[u8], TokenType, KeywordHasher> =
+                HashMap::with_capacity_and_hasher(3, BuildHasherDefault::default());
         keyword_map.entry(INT).or_insert(TokenType::Int);
         keyword_map.entry(VOID).or_insert(TokenType::Void);
         keyword_map.entry(RETURN).or_insert(TokenType::Return);
@@ -106,7 +107,11 @@ pub fn lex(program: Program<Initialized>) -> Result<Program<Lexed>, Error> {
         })
 }
 
-pub fn get_largest_match<S: BuildHasher>(code: &[u8], start: usize, keyword_map: &HashMap<&[u8], TokenType, S>) -> Option<Token> {
+pub fn get_largest_match<S: BuildHasher>(
+        code: &[u8],
+        start: usize,
+        keyword_map: &HashMap<&[u8], TokenType, S>,
+) -> Option<Token> {
         if let Some(value) = match_symbol(code, start) {
                 return Some(value);
         }
@@ -190,7 +195,11 @@ fn match_symbol(code: &[u8], start: usize) -> Option<Token> {
                 _ => None,
         } {
                 let Some(curr) = code.get(start + 1) else {
-                        return Some(Token { token_type, len: 1, start });
+                        return Some(Token {
+                                token_type,
+                                len: 1,
+                                start,
+                        });
                 };
 
                 if let Some(token_type) = match (token_type, curr) {
@@ -215,7 +224,11 @@ fn match_symbol(code: &[u8], start: usize) -> Option<Token> {
                         _ => None,
                 } {
                         let Some(curr) = code.get(start + 2) else {
-                                return Some(Token { token_type, len: 2, start });
+                                return Some(Token {
+                                        token_type,
+                                        len: 2,
+                                        start,
+                                });
                         };
 
                         if let Some(token_type) = match (token_type, curr) {
@@ -223,12 +236,24 @@ fn match_symbol(code: &[u8], start: usize) -> Option<Token> {
                                 (TokenType::LeftShift, b'=') => Some(TokenType::LeftShiftAssign),
                                 _ => None,
                         } {
-                                return Some(Token { token_type, len: 3, start });
+                                return Some(Token {
+                                        token_type,
+                                        len: 3,
+                                        start,
+                                });
                         }
 
-                        return Some(Token { token_type, len: 2, start });
+                        return Some(Token {
+                                token_type,
+                                len: 2,
+                                start,
+                        });
                 }
-                return Some(Token { token_type, len: 1, start });
+                return Some(Token {
+                        token_type,
+                        len: 1,
+                        start,
+                });
         }
         None
 }

@@ -1,6 +1,7 @@
 use nodes::{
-        ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType, Conditional, Declaration, For, ForInit,
-        FunctionDeclaration, IfStatement, LoopSwitchOrNone, ParseLabel, Switch, Unop, VariableDeclaration,
+        ABlock, AConstant, AExpression, AFactor, AIdentifier, AProgram, AStatement, Binop, BlockItem, BreakType,
+        Conditional, Declaration, For, ForInit, FunctionDeclaration, IfStatement, LoopSwitchOrNone, ParseLabel, Switch,
+        Unop, VariableDeclaration,
 };
 use thiserror::Error;
 
@@ -266,7 +267,15 @@ fn parse_statement(tokens: &[Token], ptr: &mut usize, curr_state: LoopSwitchOrNo
                 is_token(tokens, TokenType::CloseParen, ptr)?;
                 let body = parse_statement(tokens, ptr, LoopSwitchOrNone::Loop)?;
 
-                Ok(AStatement::F(Box::new(For { init, condition, post, body }), ParseLabel(0)))
+                Ok(AStatement::F(
+                        Box::new(For {
+                                init,
+                                condition,
+                                post,
+                                body,
+                        }),
+                        ParseLabel(0),
+                ))
         } else {
                 is_token(tokens, TokenType::SemiColon, ptr)?;
                 Ok(AStatement::Nul)

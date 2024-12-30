@@ -18,7 +18,11 @@ pub(super) fn label_loops(program: &mut AProgram) -> Result<usize, Error> {
         Ok(max_label.0)
 }
 
-fn label_statement(statement: &mut AStatement, curr_label: Option<ParseLabel>, max_label: &mut ParseLabel) -> Result<(), Error> {
+fn label_statement(
+        statement: &mut AStatement,
+        curr_label: Option<ParseLabel>,
+        max_label: &mut ParseLabel,
+) -> Result<(), Error> {
         match statement {
                 AStatement::Break(..) | AStatement::Continue(_) => {
                         let Some(label) = curr_label else {
@@ -52,7 +56,9 @@ fn label_statement(statement: &mut AStatement, curr_label: Option<ParseLabel>, m
                 }
                 AStatement::S(switch) => {
                         let switch_label = new_label(max_label);
-                        let Switch { cases, default, label, .. } = switch;
+                        let Switch {
+                                cases, default, label, ..
+                        } = switch;
                         *label = switch_label;
 
                         for i in cases {
